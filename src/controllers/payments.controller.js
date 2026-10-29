@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { supabaseAdmin } from '../config/supabase.js';
 import { verifyTransaction, listBanks } from '../utils/paystack.js';
+import { assertVerifiedPaystackPayment } from '../utils/paymentValidation.js';
 
 async function handleSuccessfulPayment(data) {
   const reference = data.reference;
@@ -12,6 +13,10 @@ async function handleSuccessfulPayment(data) {
     .maybeSingle();
 
   if (!payment || payment.status === 'success') return;
+
+  // A signed webhook confirms its origin, not that the received amount matches
+  // the checkout. Verify reference, currency and full amount before fulfillment.
+  assertVerifiedPaystackPayment(data, payment);
 
   // Atomically claim the payment so duplicate webhooks/verification calls do
   // not issue duplicate notifications or race the order state transition.
