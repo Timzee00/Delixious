@@ -26,6 +26,7 @@ export default function Restaurants() {
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
     const timer = setTimeout(async () => {
       const first = page === 1;
       first ? setLoading(true) : setLoadingMore(true);
@@ -35,8 +36,8 @@ export default function Restaurants() {
         if (query.trim()) params.search = query.trim();
         if (cuisine !== 'All') params.cuisine = cuisine;
         if (openOnly) params.is_open = true;
-        const requests = [api.get('/restaurants', { params })];
-        if (first && isAuthenticated) requests.push(api.get('/favorites/restaurants'));
+        const requests = [api.get('/restaurants', { params, signal: controller.signal })];
+        if (first && isAuthenticated) requests.push(api.get('/favorites/restaurants', { signal: controller.signal }));
         const [restaurantResponse, favoriteResponse] = await Promise.all(requests);
         if (cancelled) return;
         const data = restaurantResponse.data;
@@ -44,12 +45,12 @@ export default function Restaurants() {
         setTotal(data.total || 0);
         if (favoriteResponse) setFavoriteIds(new Set(favoriteResponse.data.restaurant_ids || []));
       } catch (err) {
-        if (!cancelled) setError(err.response?.data?.error || 'Could not load restaurants right now.');
+        if (!cancelled && err.code !== 'ERR_CANCELED') setError(err.response?.data?.error || 'Could not load restaurants right now.');
       } finally {
         if (!cancelled) { setLoading(false); setLoadingMore(false); }
       }
     }, 300);
-    return () => { cancelled = true; clearTimeout(timer); };
+    return () => { cancelled = true; controller.abort(); clearTimeout(timer); };
   }, [query, cuisine, openOnly, page, isAuthenticated]);
 
   async function toggleFavorite(id) {
