@@ -39,7 +39,7 @@ export function SearchField({ value, onChange, label = 'Search', placeholder = '
       </span>
       <input id={id} ref={ref} type="search" value={value} onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className="min-h-11 w-full rounded-xl border border-hairline bg-paper py-3 pl-11 pr-12 text-sm text-ink
+        className="min-h-11 w-full rounded-xl border border-hairline bg-paper py-3 pl-11 pr-12 text-base text-ink sm:text-sm
           placeholder:text-ink-soft/60 focus:border-pepper focus:outline-none focus:ring-2 focus:ring-pepper/20" />
       {value && (
         <button type="button" onClick={() => { onChange(''); ref.current?.focus(); }}
