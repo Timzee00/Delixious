@@ -1,9 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { supabaseAdmin } from '../config/supabase.js';
 import { initializeTransaction } from '../utils/paystack.js';
-
-const DELIVERY_FEE = 500;
-const COMMISSION_RATE = 0.10;
+import { calculateOrderAllocation } from '../utils/walletPricing.js';
 
 const VALID_TRANSITIONS = {
   pending: ['confirmed', 'cancelled'],
@@ -26,6 +24,11 @@ export async function checkout(req, res, next) {
     if (cartsError) throw cartsError;
     if (!carts?.length) return res.status(400).json({ error: 'Your cart is empty.' });
 
+    const { data: walletSettings, error: settingsError } = await supabaseAdmin
+      .from('wallet_settings')
+      .select('restaurant_commission_bps,rider_commission_bps,restaurant_delivery_fee_kobo')
+      .eq('id', 1).single();
+    if (settingsError) throw settingsError;
     const checkoutGroupId = uuidv4();
     const createdOrders = [];
     const splitSubaccounts = [];
@@ -59,10 +62,21 @@ export async function checkout(req, res, next) {
         return res.status(400).json({ error: `${restaurant.name} has not completed its payout setup and cannot accept paid orders yet.` });
       }
 
-      const subtotal = cartItems.reduce((sum, ci) => sum + Number(ci.menu_items.price) * ci.quantity, 0);
-      const total_amount = subtotal + DELIVERY_FEE;
-      const platform_commission = Math.round(subtotal * COMMISSION_RATE * 100) / 100;
-      const restaurantShareKobo = Math.round((subtotal - platform_commission) * 100);
+      const foodTotalKobo = cartItems.reduce((sum, ci) =>
+        sum + Math.round(Number(ci.menu_items.price) * 100) * ci.quantity, 0);
+      if (!Number.isSafeInteger(foodTotalKobo) || foodTotalKobo <= 0) {
+        return res.status(400).json({ error: 'Invalid cart total. Please refresh your cart.' });
+      }
+      let allocation;
+      try {
+        allocation = calculateOrderAllocation(foodTotalKobo, walletSettings);
+      } catch (allocationError) {
+        return res.status(400).json({ error: allocationError.message });
+      }
+      const subtotal = foodTotalKobo / 100;
+      const total_amount = subtotal;
+      const platform_commission = allocation.platformGrossCommissionKobo / 100;
+      const restaurantShareKobo = allocation.restaurantShareKobo;
 
       const { data: order, error: orderError } = await supabaseAdmin
         .from('orders')
@@ -71,10 +85,15 @@ export async function checkout(req, res, next) {
           restaurant_id: restaurant.id,
           status: 'pending',
           subtotal,
-          delivery_fee: DELIVERY_FEE,
+          delivery_fee: 0,
           total_amount,
           platform_commission,
-          rider_payout_amount: Math.round(DELIVERY_FEE * 0.9 * 100) / 100,
+          rider_payout_amount: allocation.riderPayoutKobo / 100,
+          restaurant_delivery_cost_kobo: allocation.deliveryCostKobo,
+          restaurant_commission_bps: walletSettings.restaurant_commission_bps,
+          rider_commission_bps: walletSettings.rider_commission_bps,
+          rider_commission_kobo: allocation.riderCommissionKobo,
+          restaurant_net_amount: restaurantShareKobo / 100,
           delivery_address,
           delivery_lat,
           delivery_lng,
@@ -103,7 +122,7 @@ export async function checkout(req, res, next) {
 
       createdOrders.push(order);
       splitSubaccounts.push({ subaccount: restaurant.paystack_subaccount_code, shareKobo: restaurantShareKobo });
-      grandTotalKobo += Math.round(total_amount * 100);
+      grandTotalKobo += allocation.customerTotalKobo;
     }
 
     if (!createdOrders.length) return res.status(400).json({ error: 'Your cart is empty.' });
