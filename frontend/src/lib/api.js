@@ -1,11 +1,13 @@
 import axios from 'axios';
 import { getCsrfToken, setCsrfToken } from './csrf.js';
 
-// Production uses the same-origin Express API. VITE_API_URL remains available
-// for local development or a separately hosted API.
+// Use a first-party API URL in every environment. Vite and Netlify proxy /api
+// to the server while the browser retains its own origin for auth cookies.
+// Ignore an old VITE_API_URL value that points to a separate backend.
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
+  baseURL: '/api',
   withCredentials: true,
+  timeout: 25000,
 });
 
 const MUTATING_METHODS = new Set(['post', 'put', 'patch', 'delete']);
