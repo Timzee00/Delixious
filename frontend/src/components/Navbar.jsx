@@ -11,11 +11,22 @@ export default function Navbar() {
   const { unreadCount } = useNotifications();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [logoutPending, setLogoutPending] = useState(false);
+  const [logoutError, setLogoutError] = useState('');
 
   async function handleLogout() {
-    setMenuOpen(false);
-    await logout();
-    navigate('/login');
+    if (logoutPending) return;
+    setLogoutPending(true);
+    setLogoutError('');
+    try {
+      await logout();
+      setMenuOpen(false);
+      navigate('/login');
+    } catch {
+      setLogoutError('Could not confirm sign-out. Check your connection and try again.');
+    } finally {
+      setLogoutPending(false);
+    }
   }
 
   const linkClass = ({ isActive }) =>
@@ -91,6 +102,8 @@ export default function Navbar() {
               </Link>
               <button
                 onClick={handleLogout}
+                disabled={logoutPending}
+                aria-busy={logoutPending}
                 className="hidden rounded-lg border border-hairline px-3 py-1.5 text-sm font-medium text-ink-soft transition-colors hover:border-pepper hover:text-pepper sm:inline-block"
               >
                 Log out
@@ -155,6 +168,8 @@ export default function Navbar() {
             {isAuthenticated ? (
               <button
                 onClick={handleLogout}
+                disabled={logoutPending}
+                aria-busy={logoutPending}
                 className="w-full rounded-lg border border-hairline px-3 py-2 text-left text-sm font-medium text-ink-soft transition-colors hover:border-pepper hover:text-pepper"
               >
                 Log out
@@ -179,6 +194,11 @@ export default function Navbar() {
             )}
           </div>
         </nav>
+      )}
+      {logoutError && (
+        <p role="alert" className="border-t border-danger/20 bg-paper px-4 py-2 text-center text-sm text-danger">
+          {logoutError}
+        </p>
       )}
     </header>
   );
