@@ -14,6 +14,11 @@ export function AuthProvider({ children }) {
   const sessionGeneration = useRef(0);
 
   const applySession = useCallback((data) => {
+    if (!data?.user?.id || !data?.profile?.id) {
+      const error = new Error('The server did not return a valid sign-in session. Please try again.');
+      error.code = 'INVALID_SESSION_RESPONSE';
+      throw error;
+    }
     setUser(data.user);
     setProfile(data.profile);
     setCsrfToken(data.csrfToken);
