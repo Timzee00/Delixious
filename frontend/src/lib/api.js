@@ -54,7 +54,17 @@ async function refreshSession() {
 }
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // A missing /api Netlify rewrite can serve index.html with HTTP 200.
+    // Treat HTML as a transport error, never as a successful login/checkout.
+    if (typeof response.data === 'string' && /^\\s*(?:<!doctype html|<html\\b)/i.test(response.data.slice(0, 256))) {
+      const error = new Error('Delixious API routing is unavailable. Please try again shortly.');
+      error.code = 'API_PROXY_MISCONFIGURED';
+      error.config = response.config;
+      return Promise.reject(error);
+    }
+    return response;
+  },
   async (error) => {
     const { config, response } = error;
     const isAuthRefreshRequest = config?.url?.endsWith('/auth/refresh');
