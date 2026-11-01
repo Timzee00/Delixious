@@ -21,13 +21,25 @@ async function handleSuccessfulPayment(data) {
   assertVerifiedPaystackPayment(data, payment);
   if (payment.status === 'success') return;
 
+  const { data: checkoutOrders, error: checkoutError } = await supabaseAdmin
+    .from('orders')
+    .select('id, status, payment_status')
+    .eq('checkout_group_id', payment.checkout_group_id);
+  if (checkoutError) throw checkoutError;
+  if (!checkoutOrders?.length || checkoutOrders.some((order) =>
+    order.status === 'cancelled' || order.payment_status === 'refunded')) {
+    // Never silently resurrect cancelled/refunded orders when a late charge
+    // arrives. Such transactions must be reviewed for a manual refund.
+    throw new Error('Charged checkout requires manual reconciliation before fulfillment.');
+  }
+
   // Atomically claim the payment so duplicate webhooks/verification calls do
   // not issue duplicate notifications or race the order state transition.
   const { data: claimedPayment, error: claimError } = await supabaseAdmin
     .from('payments')
     .update({ status: 'processing', raw_response: data })
     .eq('id', payment.id)
-    .eq('status', 'pending')
+    .in('status', ['pending', 'failed'])
     .select('*')
     .maybeSingle();
 
@@ -40,7 +52,7 @@ async function handleSuccessfulPayment(data) {
       .from('orders')
       .update({ payment_status: 'paid', status: 'confirmed' })
       .eq('checkout_group_id', claimedPayment.checkout_group_id)
-      .eq('payment_status', 'pending')
+      .in('payment_status', ['pending', 'failed'])
       .select();
     if (ordersError) throw ordersError;
     newlyPaidOrders = orders || [];
@@ -191,7 +203,15 @@ export async function verifyPayment(req, res, next) {
       await supabaseAdmin.from('orders').update({ payment_status: 'failed' }).eq('checkout_group_id', payment.checkout_group_id).eq('payment_status', 'pending');
     }
 
-    res.json({ status: verification.data.status });
+    // A provider success does not necessarily mean our order bookkeeping
+    // finished. Only show "confirmed" when our stored payment is finalized.
+    const { data: finalPayment, error: finalError } = await supabaseAdmin
+      .from('payments').select('status').eq('reference', reference).maybeSingle();
+    if (finalError) throw finalError;
+    const status = verification.data.status === 'success' && finalPayment?.status !== 'success'
+      ? 'processing'
+      : verification.data.status;
+    res.json({ status });
   } catch (err) {
     next(err);
   }
