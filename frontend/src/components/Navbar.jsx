@@ -3,6 +3,7 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useCart } from '../context/CartContext.jsx';
 import { useNotifications } from '../context/NotificationsContext.jsx';
+import Icon from './ui/Icon.jsx';
 
 export default function Navbar() {
   const { isAuthenticated, profile, logout } = useAuth();
@@ -18,10 +19,10 @@ export default function Navbar() {
   }
 
   const linkClass = ({ isActive }) =>
-    `text-sm font-medium transition-colors ${isActive ? 'text-pepper' : 'text-ink-soft hover:text-ink'}`;
+    `text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-pepper ${isActive ? 'text-pepper' : 'text-ink-soft hover:text-ink'}`;
 
   const mobileLinkClass = ({ isActive }) =>
-    `block rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+    `block rounded-lg px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-pepper ${
       isActive ? 'bg-sand text-pepper' : 'text-ink-soft hover:bg-sand hover:text-ink'
     }`;
 
@@ -32,7 +33,7 @@ export default function Navbar() {
           Deli<span className="text-pepper">xious</span>
         </Link>
 
-        <nav className="hidden items-center gap-6 sm:flex">
+        <nav aria-label="Main navigation" className="hidden items-center gap-6 sm:flex">
           <NavLink to="/" end className={linkClass}>
             Home
           </NavLink>
@@ -62,7 +63,7 @@ export default function Navbar() {
                 className="relative rounded-full p-2 text-ink-soft transition-colors hover:bg-sand hover:text-ink"
                 aria-label="Notifications"
               >
-                <BellIcon />
+                <Icon name="bell" />
                 {unreadCount > 0 && (
                   <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-pepper px-1 font-mono text-[10px] font-semibold text-white">
                     {unreadCount > 9 ? '9+' : unreadCount}
@@ -74,7 +75,7 @@ export default function Navbar() {
                 className="relative rounded-full p-2 text-ink-soft transition-colors hover:bg-sand hover:text-ink"
                 aria-label="Cart"
               >
-                <CartIcon />
+                <Icon name="cart" />
                 {cartCount > 0 && (
                   <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-jade px-1 font-mono text-[10px] font-semibold text-white">
                     {cartCount}
@@ -86,7 +87,7 @@ export default function Navbar() {
                 className="hidden rounded-full p-2 text-ink-soft transition-colors hover:bg-sand hover:text-ink sm:inline-flex"
                 aria-label="Profile"
               >
-                <ProfileIcon />
+                <Icon name="user" />
               </Link>
               <button
                 onClick={handleLogout}
@@ -112,16 +113,17 @@ export default function Navbar() {
           <button
             onClick={() => setMenuOpen((open) => !open)}
             className="rounded-lg p-2 text-ink-soft transition-colors hover:bg-sand hover:text-ink sm:hidden"
-            aria-label="Menu"
+            aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
+            aria-controls="mobile-navigation"
             aria-expanded={menuOpen}
           >
-            {menuOpen ? <CloseIcon /> : <MenuIcon />}
+            {menuOpen ? <Icon name="x" size={22} /> : <Icon name="menu" size={22} />}
           </button>
         </div>
       </div>
 
       {menuOpen && (
-        <nav className="border-t border-hairline bg-paper px-4 py-3 sm:hidden">
+        <nav id="mobile-navigation" aria-label="Mobile navigation" className="border-t border-hairline bg-paper px-4 py-3 sm:hidden">
           <div className="flex flex-col gap-1">
             <NavLink to="/" end className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
               Home
@@ -181,50 +183,3 @@ export default function Navbar() {
     </header>
   );
 }
-
-function BellIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-    </svg>
-  );
-}
-
-function CartIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="9" cy="21" r="1" />
-      <circle cx="20" cy="21" r="1" />
-      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-    </svg>
-  );
-}
-
-function ProfileIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-      <circle cx="12" cy="7" r="4" />
-    </svg>
-  );
-}
-
-function MenuIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="3" y1="6" x2="21" y2="6" />
-      <line x1="3" y1="12" x2="21" y2="12" />
-      <line x1="3" y1="18" x2="21" y2="18" />
-    </svg>
-  );
-}
-
-function CloseIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
-  );
-      }
