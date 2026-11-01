@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { setAuthCookies, clearAuthCookies } from '../src/utils/authCookies.js';
+import { setAuthCookies, clearAuthCookies, ensureCsrfCookie } from '../src/utils/authCookies.js';
 
 function fakeResponse() {
   const cookies = new Map();
@@ -45,8 +45,29 @@ describe('authentication cookies', () => {
   it('clears refresh cookie using the same restricted path', () => {
     const { res, clears } = fakeResponse();
     clearAuthCookies(res);
-    expect(clears.get('refresh_token')).toEqual({ path: '/api/auth' });
-    expect(clears.get('access_token')).toEqual({ path: '/' });
-    expect(clears.get('csrf_token')).toEqual({ path: '/' });
+    expect(clears.get('refresh_token')).toMatchObject({ path: '/api/auth', sameSite: 'lax', secure: false, httpOnly: true });
+    expect(clears.get('access_token')).toMatchObject({ path: '/', sameSite: 'lax', secure: false, httpOnly: true });
+    expect(clears.get('csrf_token')).toMatchObject({ path: '/', sameSite: 'lax', secure: false, httpOnly: false });
+  });
+  it('keeps the CSRF token stable when refreshing access cookies', () => {
+    const { res, cookies } = fakeResponse();
+    const token = 'a'.repeat(64);
+    expect(setAuthCookies(res, sampleSession, { csrfToken: token })).toBe(token);
+    expect(cookies.get('csrf_token').value).toBe(token);
+  });
+
+  it('reissues a missing CSRF cookie without changing authentication cookies', () => {
+    const { res, cookies } = fakeResponse();
+    const token = ensureCsrfCookie({ cookies: {} }, res);
+    expect(token).toMatch(/^[a-f0-9]{64}$/);
+    expect(cookies.size).toBe(1);
+    expect(cookies.get('csrf_token').options.path).toBe('/');
+  });
+
+  it('uses an existing valid CSRF cookie without sending a new cookie', () => {
+    const { res } = fakeResponse();
+    const token = 'b'.repeat(64);
+    expect(ensureCsrfCookie({ cookies: { csrf_token: token } }, res)).toBe(token);
+    expect(res.cookie).not.toHaveBeenCalled();
   });
 });
