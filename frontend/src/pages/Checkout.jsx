@@ -5,14 +5,26 @@ import { useCart } from '../context/CartContext.jsx';
 import { formatNaira } from '../lib/format.js';
 
 export default function Checkout() {
-  const { cart } = useCart();
+  const { cart, cartError, refreshCart } = useCart();
   const [address, setAddress] = useState('');
   const [coords, setCoords] = useState(null);
   const [locating, setLocating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  if (!cart || !cart.items.length) {
+  if (!cart && cartError) {
+    return (
+      <section role="alert" className="mx-auto max-w-xl px-4 py-16 text-center">
+        <h1 className="font-display text-xl font-bold text-ink">Unable to check your cart</h1>
+        <p className="mt-3 text-sm text-ink-soft">{cartError}</p>
+        <button type="button" onClick={refreshCart} className="mt-5 min-h-11 rounded-xl bg-pepper px-5 py-2.5 font-semibold text-white">Retry</button>
+      </section>
+    );
+  }
+  if (!cart) {
+    return <p role="status" className="px-4 py-16 text-center text-sm text-ink-soft">Loading your cart…</p>;
+  }
+  if (!cart.items.length) {
     return (
       <div className="mx-auto max-w-md px-4 py-16 text-center">
         <div className="ticket p-10">
@@ -74,6 +86,10 @@ export default function Checkout() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (cartError) {
+      setError('Your cart could not be verified. Please retry the cart before paying.');
+      return;
+    }
     if (!address.trim()) {
       setError('Enter a delivery address.');
       return;
@@ -144,11 +160,11 @@ export default function Checkout() {
           {locating ? 'Locating...' : coords ? 'Location added' : 'Use my current location'}
         </button>
 
-        {error && <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
+        {(error || cartError) && <p role="alert" className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error || cartError}</p>}
 
         <button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || Boolean(cartError)}
           className="w-full rounded-lg bg-pepper py-3 font-semibold text-white transition-colors hover:bg-pepper-dark disabled:opacity-60"
         >
           {submitting ? 'Redirecting to payment...' : 'Pay with Paystack'}
