@@ -1,4 +1,5 @@
 import adminRoutes from './routes/admin.routes.js';
+import walletRoutes from './routes/wallet.routes.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -67,6 +68,7 @@ app.use('/api/reviews', reviewsRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/favorites', favoritesRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/wallet', walletRoutes);
 
 // Production deployment: Render serves the React/Vite frontend from this
 // same Express service. This keeps browser auth cookies and API requests on
