@@ -235,9 +235,19 @@ export async function updateOrderStatus(req, res, next) {
     }
     const allowedNext = VALID_TRANSITIONS[order.status] || [];
     if (!allowedNext.includes(status)) return res.status(400).json({ error: `Cannot move order from "${order.status}" to "${status}".` });
+    if (status === 'cancelled' && (order.payment_status === 'paid' || order.payment_status === 'refunded' || order.payment_reference)) {
+      return res.status(409).json({ error: 'A charged or in-progress payment requires support-assisted cancellation and refund handling.' });
+    }
 
-    const { data: updated, error: updateError } = await supabaseAdmin.from('orders').update({ status }).eq('id', order.id).eq('status', order.status).select().single();
+    let update = supabaseAdmin.from('orders')
+      .update({ status })
+      .eq('id', order.id)
+      .eq('status', order.status)
+      .eq('payment_status', order.payment_status);
+    if (status === 'cancelled') update = update.is('payment_reference', null);
+    const { data: updated, error: updateError } = await update.select().maybeSingle();
     if (updateError) throw updateError;
+    if (!updated) return res.status(409).json({ error: 'Order changed during this request. Refresh and try again.' });
     await supabaseAdmin.from('notifications').insert({ user_id: order.user_id, title: 'Order update', body: `Your order is now "${status.replace(/_/g, ' ')}".`, type: 'order_update' });
     res.json({ message: 'Order status updated.', order: updated });
   } catch (err) {
