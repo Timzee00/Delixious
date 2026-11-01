@@ -26,6 +26,18 @@ export function setUnauthorizedHandler(fn) {
 }
 
 let refreshPromise = null;
+let csrfRepairPromise = null;
+
+// If a browser lost its readable CSRF cookie but retained its httpOnly
+// session, /auth/me can reissue the missing cookie without a logout.
+async function repairCsrfCookie() {
+  if (!csrfRepairPromise) {
+    csrfRepairPromise = api.get('/auth/me')
+      .then(({ data }) => setCsrfToken(data.csrfToken))
+      .finally(() => { csrfRepairPromise = null; });
+  }
+  return csrfRepairPromise;
+}
 
 async function refreshSession() {
   if (!refreshPromise) {
@@ -53,6 +65,18 @@ api.interceptors.response.use(
     // The refresh request itself must never recursively trigger another refresh.
     if (isAuthRefreshRequest) {
       return Promise.reject(error);
+    }
+
+    // The server rejects CSRF failures before reaching a business handler.
+    // Repair the cookie through a safe GET, then retry at most once.
+    if (response?.status === 403 && response?.data?.code === 'CSRF_TOKEN_INVALID' && config && !config._csrfRetried) {
+      config._csrfRetried = true;
+      try {
+        await repairCsrfCookie();
+        return api(config);
+      } catch (repairError) {
+        return Promise.reject(repairError);
+      }
     }
 
     // Expired access tokens can be recovered using the httpOnly refresh cookie.
