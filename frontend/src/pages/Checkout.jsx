@@ -114,7 +114,15 @@ export default function Checkout() {
             <span className="text-ink-soft">Subtotal</span>
             <span className="font-mono font-semibold text-ink">{formatNaira(cart.subtotal)}</span>
           </div>
-          <p className="mt-1 text-xs text-ink-soft">Delivery fee is added at checkout.</p>
+          <div className="mt-3 flex items-center justify-between text-sm">
+            <span className="text-ink-soft">Delivery</span>
+            <span className="font-semibold text-jade">Covered by restaurant</span>
+          </div>
+          <div className="mt-3 flex items-center justify-between border-t border-hairline pt-3">
+            <span className="font-semibold text-ink">Total to pay</span>
+            <span className="font-display text-xl font-bold text-ink">{formatNaira(cart.subtotal)}</span>
+          </div>
+          <p className="mt-2 text-xs text-ink-soft">Restaurant commissions and delivery costs are deducted from restaurant earnings, not added to your food total.</p>
         </div>
       </div>
 
@@ -133,7 +141,7 @@ export default function Checkout() {
           disabled={locating}
           className="text-sm font-medium text-pepper hover:underline disabled:opacity-60"
         >
-          {locating ? 'Locating...' : coords ? 'Location attached ✓' : 'Use my current location'}
+          {locating ? 'Locating...' : coords ? 'Location added' : 'Use my current location'}
         </button>
 
         {error && <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
