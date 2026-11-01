@@ -37,9 +37,10 @@ export default function Navbar() {
             Home
           </NavLink>
           {isAuthenticated && (
-            <NavLink to="/orders" className={linkClass}>
-              Orders
-            </NavLink>
+            <>
+              <NavLink to="/orders" className={linkClass}>Orders</NavLink>
+              <NavLink to="/wallet" className={linkClass}>Wallet</NavLink>
+            </>
           )}
           {(profile?.role === 'restaurant_owner' || profile?.role === 'admin') && (
             <NavLink to="/dashboard" className={linkClass}>
@@ -126,9 +127,10 @@ export default function Navbar() {
               Home
             </NavLink>
             {isAuthenticated && (
-              <NavLink to="/orders" className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
-                Orders
-              </NavLink>
+              <>
+                <NavLink to="/orders" className={mobileLinkClass} onClick={() => setMenuOpen(false)}>Orders</NavLink>
+                <NavLink to="/wallet" className={mobileLinkClass} onClick={() => setMenuOpen(false)}>Wallet</NavLink>
+              </>
             )}
             {(profile?.role === 'restaurant_owner' || profile?.role === 'admin') && (
               <NavLink to="/dashboard" className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
