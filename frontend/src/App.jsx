@@ -27,6 +27,7 @@ const LegalPage = lazy(() => import('./pages/LegalPage.jsx'));
 const NotFound = lazy(() => import('./pages/NotFound.jsx'));
 const Admin = lazy(() => import('./pages/Admin.jsx'));
 const RiderDashboard = lazy(() => import('./pages/RiderDashboard.jsx'));
+const Wallet = lazy(() => import('./pages/Wallet.jsx'));
 
 export default function App() {
   return (
@@ -52,6 +53,7 @@ export default function App() {
               <Route path="/orders" element={<ProtectedRoute><OrderHistory /></ProtectedRoute>} />
               <Route path="/orders/:id" element={<ProtectedRoute><OrderTrackingPage /></ProtectedRoute>} />
               <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+              <Route path="/wallet" element={<ProtectedRoute><Wallet /></ProtectedRoute>} />
               <Route path="/favorites" element={<ProtectedRoute roles={['customer', 'restaurant_owner', 'delivery_agent', 'admin']}><Favorites /></ProtectedRoute>} />
               <Route path="/hq" element={<ProtectedRoute roles={['admin']}><Admin /></ProtectedRoute>} />
               <Route path="/admin" element={<ProtectedRoute roles={['admin']}><Admin /></ProtectedRoute>} />
