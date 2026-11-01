@@ -8,8 +8,9 @@ const COMMISSION_RATE = 0.10;
 const VALID_TRANSITIONS = {
   pending: ['confirmed', 'cancelled'],
   confirmed: ['preparing', 'cancelled'],
-  preparing: ['out_for_delivery'],
-  out_for_delivery: ['delivered'],
+  // Delivery dispatch and completion are controlled by the assigned rider.
+  preparing: [],
+  out_for_delivery: [],
   delivered: [],
   cancelled: [],
 };
@@ -27,7 +28,6 @@ export async function checkout(req, res, next) {
 
     const checkoutGroupId = uuidv4();
     const createdOrders = [];
-    const cartsToClear = [];
     const splitSubaccounts = [];
     let grandTotalKobo = 0;
 
@@ -98,7 +98,6 @@ export async function checkout(req, res, next) {
       if (trackingError) throw trackingError;
 
       createdOrders.push(order);
-      cartsToClear.push(cart.id);
       splitSubaccounts.push({ subaccount: restaurant.paystack_subaccount_code, shareKobo: restaurantShareKobo });
       grandTotalKobo += Math.round(total_amount * 100);
     }
@@ -151,12 +150,9 @@ export async function checkout(req, res, next) {
       throw orderReferenceError;
     }
 
-    // Only clear carts after payment initialization and all local payment
-    // bookkeeping have succeeded. A failed checkout therefore leaves the cart intact.
-    for (const cartId of cartsToClear) {
-      const { error: cartDeleteError } = await supabaseAdmin.from('carts').delete().eq('id', cartId).eq('user_id', req.user.id);
-      if (cartDeleteError) throw cartDeleteError;
-    }
+    // Payment initialization is NOT proof of payment. Retain the cart so
+    // abandoned or unsuccessful Paystack checkouts can be retried.
+    // Purchased items are removed only after a verified successful charge.
 
     res.status(201).json({
       message: 'Orders created. Redirect the customer to authorization_url to complete payment.',
@@ -255,9 +251,22 @@ export async function cancelOrder(req, res, next) {
     if (error || !order) return res.status(404).json({ error: 'Order not found.' });
     if (order.user_id !== req.user.id) return res.status(403).json({ error: 'You can only cancel your own orders.' });
     if (!['pending', 'confirmed'].includes(order.status)) return res.status(400).json({ error: `Order can no longer be cancelled (status: ${order.status}).` });
-    const { data: updated, error: updateError } = await supabaseAdmin.from('orders').update({ status: 'cancelled' }).eq('id', order.id).eq('status', order.status).select().single();
+    // A paid order requires a confirmed refund workflow; simply toggling
+    // status to "cancelled" would leave the customer charged.
+    if (order.payment_status === 'paid' || order.payment_status === 'refunded') {
+      return res.status(409).json({ error: 'This order has a completed payment. Please contact support to request cancellation and a refund.' });
+    }
+    const { data: updated, error: updateError } = await supabaseAdmin
+      .from('orders')
+      .update({ status: 'cancelled' })
+      .eq('id', order.id)
+      .eq('status', order.status)
+      .in('payment_status', ['pending', 'failed'])
+      .select()
+      .maybeSingle();
     if (updateError) throw updateError;
-    res.json({ message: 'Order cancelled.', order: updated });
+    if (!updated) return res.status(409).json({ error: 'Order or payment status changed. Refresh the order before cancelling.' });
+    res.json({ message: 'Unpaid order cancelled.', order: updated });
   } catch (err) {
     next(err);
   }
