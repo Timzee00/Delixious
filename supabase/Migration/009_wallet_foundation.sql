@@ -180,6 +180,21 @@ for select to authenticated using ((select auth.uid()) = owner_user_id);
 create policy wallet_settings_read on public.wallet_settings
 for select to authenticated using (true);
 
+-- Record every admin commission change in the same SQL transaction.
+create or replace function public.wallet_audit_settings_change()
+returns trigger language plpgsql security definer set search_path = ''
+as $
+begin
+  insert into public.wallet_settings_audit(changed_by,previous_settings,new_settings)
+  values(new.updated_by, to_jsonb(old), to_jsonb(new));
+  return new;
+end;
+$;
+revoke all on function public.wallet_audit_settings_change() from public, anon, authenticated;
+drop trigger if exists wallet_settings_audit_update on public.wallet_settings;
+create trigger wallet_settings_audit_update after update on public.wallet_settings
+for each row execute function public.wallet_audit_settings_change();
+
 -- No INSERT, UPDATE or DELETE RLS policies for user-accessible wallets,
 -- transaction entries or verification. Financial operations stay off
 -- until regulated custody, idempotent posting and reconciliation are built.
