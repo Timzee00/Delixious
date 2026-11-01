@@ -39,6 +39,12 @@ app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173', cred
 app.use(cookieParser());
 app.use(express.json({ limit: '2mb', verify: (req, res, buf) => { req.rawBody = buf; } }));
 app.use(requestContext);
+// Dynamic customer, order, account and payment responses must never be cached
+// by an intermediate reverse proxy or shared CDN.
+app.use('/api', (req, res, next) => {
+  res.set('Cache-Control', 'private, no-store');
+  next();
+});
 app.use(csrfProtection);
 
 const limiter = rateLimit({
