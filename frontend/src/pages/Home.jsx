@@ -8,6 +8,7 @@ import RestaurantCard from '../components/RestaurantCard.jsx';
 import ConfirmModal from '../components/ConfirmModal.jsx';
 import FeaturedCarousel from '../components/FeaturedCarousel.jsx';
 import { GridSkeleton, EmptyState, ErrorState } from '../components/StateViews.jsx';
+import { SearchField } from '../components/ui/Primitives.jsx';
 
 const CUISINES = ['All', 'Nigerian', 'Continental', 'Chinese', 'Fast Food', 'Grills', 'Seafood', 'Pastries'];
 
@@ -183,7 +184,7 @@ export default function Home() {
           <Link to="/restaurants" className="rounded-lg border border-hairline px-4 py-2.5 text-sm font-semibold text-ink hover:border-pepper hover:text-pepper">Browse all restaurants</Link>
         </div>
         <div className="mt-7">
-          <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search for a dish..." aria-label="Search for a dish" className="w-full rounded-xl border border-hairline bg-paper px-4 py-3.5 text-ink placeholder:text-ink-soft/60" />
+          <SearchField id="home-search-dishes" label="Search for a dish" value={query} onChange={setQuery} placeholder="Search for a dish..." />
         </div>
       </section>
 
