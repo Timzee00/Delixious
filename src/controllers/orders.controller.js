@@ -39,9 +39,10 @@ export async function checkout(req, res, next) {
       if (cartItemsError) throw cartItemsError;
       if (!cartItems?.length) continue;
 
-      const unavailable = cartItems.find((ci) => !ci.menu_items.is_available);
+      const unavailable = cartItems.find((ci) =>
+        !ci.menu_items || !ci.menu_items.is_available || ci.menu_items.restaurant_id !== cart.restaurant_id);
       if (unavailable) {
-        return res.status(400).json({ error: `${unavailable.menu_items.name} is no longer available. Please update your cart.` });
+        return res.status(400).json({ error: `${unavailable.menu_items?.name || 'A cart item'} is no longer available. Please update your cart.` });
       }
 
       const { data: restaurant, error: restaurantError } = await supabaseAdmin
@@ -51,8 +52,11 @@ export async function checkout(req, res, next) {
         .single();
       if (restaurantError || !restaurant) return res.status(404).json({ error: 'Restaurant not found.' });
       if (!restaurant.is_open) return res.status(400).json({ error: `${restaurant.name} is currently closed.` });
-      if (restaurant.approval_status !== 'approved' || !restaurant.paystack_subaccount_code) {
-        return res.status(400).json({ error: `${restaurant.name} is not yet approved to receive orders. Please remove it from your cart.` });
+      if (restaurant.approval_status !== 'approved') {
+        return res.status(400).json({ error: `${restaurant.name} is not approved to receive orders yet.` });
+      }
+      if (!restaurant.paystack_subaccount_code) {
+        return res.status(400).json({ error: `${restaurant.name} has not completed its payout setup and cannot accept paid orders yet.` });
       }
 
       const subtotal = cartItems.reduce((sum, ci) => sum + Number(ci.menu_items.price) * ci.quantity, 0);
