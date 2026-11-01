@@ -7,7 +7,7 @@ import ConfirmModal from '../components/ConfirmModal.jsx';
 import Img from '../components/Img.jsx';
 
 export default function Cart() {
-  const { cart, refreshCart } = useCart();
+  const { cart, refreshCart, cartError } = useCart();
   const navigate = useNavigate();
   const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState('');
@@ -15,8 +15,14 @@ export default function Cart() {
 
   if (!cart) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-16 text-center font-mono text-sm text-ink-soft">
-        Loading your cart...
+      <div className="mx-auto max-w-2xl px-4 py-16 text-center">
+        {cartError ? (
+          <div role="alert" className="rounded-2xl border border-danger/20 bg-paper p-8">
+            <h1 className="font-display text-xl font-bold text-ink">Unable to load your cart</h1>
+            <p className="mt-2 text-sm text-ink-soft">{cartError}</p>
+            <button type="button" onClick={refreshCart} className="mt-5 min-h-11 rounded-xl bg-pepper px-5 py-2.5 text-sm font-semibold text-white">Try again</button>
+          </div>
+        ) : <p role="status" className="text-sm text-ink-soft">Loading your cart…</p>}
       </div>
     );
   }
@@ -92,7 +98,12 @@ export default function Cart() {
       </div>
       {cartMeta?.restaurant && <p className="mt-1 text-sm text-ink-soft">From {cartMeta.restaurant.name}</p>}
 
-      {error && <p className="mt-4 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
+      {(error || cartError) && (
+        <p role="alert" className="mt-4 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+          {error || cartError}
+          {cartError && <button type="button" onClick={refreshCart} className="ml-3 font-semibold underline">Retry cart</button>}
+        </p>
+      )}
 
       <div className="mt-6 space-y-3">
         {items.map((item) => {
@@ -150,10 +161,11 @@ export default function Cart() {
         <span className="text-ink-soft">Subtotal</span>
         <span className="font-mono text-lg font-semibold text-ink">{formatNaira(subtotal)}</span>
       </div>
-      <p className="mt-1 text-xs text-ink-soft">Delivery fee is calculated at checkout.</p>
+      <p className="mt-1 text-xs text-ink-soft">Delivery is covered by the restaurant.</p>
 
       <button
         onClick={() => navigate('/checkout')}
+        disabled={Boolean(cartError)}
         className="mt-6 w-full rounded-lg bg-pepper py-3 font-semibold text-white transition-colors hover:bg-pepper-dark"
       >
         Proceed to checkout
