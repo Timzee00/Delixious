@@ -9,7 +9,9 @@ let currentToken = null;
 function readCookieToken() {
   if (typeof document === 'undefined' || !document.cookie) return null;
   const match = document.cookie.match(/(?:^|; )csrf_token=([^;]*)/);
-  return match ? decodeURIComponent(match[1]) : null;
+  if (!match) return null;
+  try { return decodeURIComponent(match[1]); }
+  catch { return null; }
 }
 
 export function setCsrfToken(token) {
@@ -17,8 +19,8 @@ export function setCsrfToken(token) {
 }
 
 export function getCsrfToken() {
-  // The in-memory value is fastest after login/refresh. Falling back to the
-  // browser cookie fixes the common reload case where the CSRF cookie still
-  // exists but the JavaScript process has been recreated.
-  return currentToken || readCookieToken();
+  // The cookie is shared between tabs and can be replaced on refresh.
+  // A token cached in JS can become stale even though the browser has the
+  // newer cookie. Prefer the current first-party cookie in all browsers.
+  return readCookieToken() || currentToken;
 }
