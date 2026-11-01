@@ -57,7 +57,7 @@ api.interceptors.response.use(
   (response) => {
     // A missing /api Netlify rewrite can serve index.html with HTTP 200.
     // Treat HTML as a transport error, never as a successful login/checkout.
-    if (typeof response.data === 'string' && /^\\s*(?:<!doctype html|<html\\b)/i.test(response.data.slice(0, 256))) {
+    if (typeof response.data === 'string' && /^\s*(?:<!doctype html|<html\b)/i.test(response.data.slice(0, 256))) {
       const error = new Error('Delixious API routing is unavailable. Please try again shortly.');
       error.code = 'API_PROXY_MISCONFIGURED';
       error.config = response.config;
