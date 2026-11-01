@@ -29,7 +29,7 @@ export default function Cart() {
 
   const { items, subtotal, cart: cartMeta } = cart;
 
-  if (!items.length) {
+  if (!items.length && !cartError) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 text-center">
         <div className="ticket p-10">
