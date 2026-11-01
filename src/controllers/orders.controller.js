@@ -256,12 +256,17 @@ export async function cancelOrder(req, res, next) {
     if (order.payment_status === 'paid' || order.payment_status === 'refunded') {
       return res.status(409).json({ error: 'This order has a completed payment. Please contact support to request cancellation and a refund.' });
     }
+    if (order.payment_status === 'pending' && order.payment_reference) {
+      return res.status(409).json({ error: 'Payment authorization is in progress. Contact support before cancelling; your payment may still complete.' });
+    }
     const { data: updated, error: updateError } = await supabaseAdmin
       .from('orders')
       .update({ status: 'cancelled' })
       .eq('id', order.id)
       .eq('status', order.status)
       .in('payment_status', ['pending', 'failed'])
+      // Do not race a newly-created Paystack checkout reference.
+      .is('payment_reference', null)
       .select()
       .maybeSingle();
     if (updateError) throw updateError;
