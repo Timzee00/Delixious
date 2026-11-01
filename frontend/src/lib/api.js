@@ -43,6 +43,9 @@ async function refreshSession() {
   if (!refreshPromise) {
     refreshPromise = api.post('/auth/refresh')
       .then((res) => {
+        if (!res.data?.user?.id || !res.data?.profile?.id) {
+          throw new Error('The server did not return a valid session.');
+        }
         setCsrfToken(res.data.csrfToken);
         return res;
       })
