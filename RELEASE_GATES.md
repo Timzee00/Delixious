@@ -77,3 +77,67 @@ These are **goals**, not measured achievements:
 - A code-only UX review is not a rendered/mobile UX acceptance test.
 
 **Release decision:** do not merge/deploy to production or accept new public payments until all P0 gates are green.
+
+
+## Browser compatibility and same-origin auth gate (November 1, 2026)
+
+The previous Chrome-only experience may have been caused by the old frontend
+calling Render directly, leaving browsers to handle third-party cookies.
+**The fix is architectural: every browser must use its OWN origin for API traffic.**
+
+Code now enforces:
+- Axios always uses `/api` and ignores stale `VITE_API_URL` build variables.
+- Vite proxies `/api` in development and `frontend/netlify.toml` uses a
+  forced 200 rewrite to Render before the SPA fallback.
+- Access and refresh cookies are host-only, Secure over HTTPS, HttpOnly,
+  SameSite=Lax; refresh cookie path is `/api/auth`.
+- A readable first-party CSRF cookie is repaired on `GET /api/auth/me`;
+  the request interceptor uses the latest cookie and retries a server-rejected
+  CSRF request only once after safe repair.
+- Refresh-token races between tabs must not clear potentially newer cookies.
+  Database/provider outages return a retryable error, not a false logout.
+- The browser Realtime client cannot maintain a competing persisted Supabase
+  authentication session.
+- All API responses say `Cache-Control: private, no-store`.
+- Sign-out errors are shown. Cart errors do not masquerade as an empty basket;
+  payment must not start on an unverified cart.
+
+### Required staged real-browser tests (not yet run)
+
+| Browser | Required checks |
+| --- | --- |
+| Chrome Android + desktop | Login, reload, CSRF post, idle refresh, checkout, logout |
+| Firefox desktop/Android | Same tests; Enhanced Tracking Protection enabled |
+| Safari iOS/macOS | Same tests with Prevent Cross-Site Tracking enabled |
+| Samsung Internet Android | Same tests on standard and privacy settings |
+| Edge desktop/mobile | Same tests with tracking protection |
+| Brave | Same tests with default shields |
+
+For each browser, verify with the actual Netlify-deployed staging frontend:
+1. In Developer Tools, `POST /api/auth/login` is sent to the **site's**
+   domain, never directly to `onrender.com`. The response sets access,
+   refresh and CSRF cookies for the site host with correct paths.
+2. Reload `/orders`; session remains active. Repeat after token expiry and
+   opening two tabs; no spurious sign-out.
+3. Clear only the readable CSRF cookie, then submit a safe profile update.
+   The interceptor should restore the cookie and retry exactly once.
+4. Log out, reload, and confirm protected pages require login.
+5. Block network, reload a protected page, and confirm the user sees Retry
+   rather than an immediate login redirect. Restore network and recover.
+6. Fail the cart GET and confirm the app shows Retry rather than an empty cart
+   or starting checkout. Restore network, then complete the test-mode payment
+   return to the same site origin.
+7. Check cookies with third-party cookies disabled. Confirm API paths never
+   serve index.html by mistake; unauthorized `/api/auth/me` should be JSON.
+8. Test Netlify 200 proxy with `Set-Cookie` and ordinary authenticated
+   requests. Check response `Cache-Control` and `X-Request-Id`.
+9. Confirm known browser privacy limitations: private/incognito sessions or
+   in-app browsers may erase storage when closed; do not promise permanent
+   sign-in.
+
+### Release decision
+
+Do not claim Safari, Firefox, mobile, or Chrome compatibility until those
+real-browser tests pass. The code-only changes and focused JavaScript checks
+are not a substitute. Full npm suites and browser E2E are still blocked by
+the current GitHub Actions runner issue.
