@@ -1,6 +1,6 @@
 import { supabaseAdmin, supabaseAnon } from '../config/supabase.js';
 import { createSubaccount, createTransferRecipient } from '../utils/paystack.js';
-import { setAuthCookies, clearAuthCookies } from '../utils/authCookies.js';
+import { setAuthCookies, clearAuthCookies, ensureCsrfCookie } from '../utils/authCookies.js';
 import logger from '../utils/logger.js';
 
 export async function signup(req, res, next) {
@@ -133,11 +133,15 @@ export async function refresh(req, res, next) {
 
     const { data, error } = await supabaseAnon.auth.refreshSession({ refresh_token: refreshToken });
 
-    if (error || !data.session) {
-      clearAuthCookies(res);
-      return res
-        .status(401)
-        .json({ error: 'Your session has expired. Please log in again.', code: 'TOKEN_EXPIRED' });
+    if (error || !data?.session) {
+      // Never send cookie-deletion headers for a failed refresh: another tab
+      // may already have rotated the same token and stored a newer session.
+      // A retryable Supabase outage is also not an invalid login.
+      const retryable = error?.status >= 500 || error?.name === 'AuthRetryableFetchError';
+      return res.status(retryable ? 503 : 401).json({
+        error: retryable ? 'Session verification is temporarily unavailable. Try again.' : 'Your session has expired. Please log in again.',
+        code: retryable ? 'AUTH_UNAVAILABLE' : 'TOKEN_EXPIRED',
+      });
     }
 
     const { data: profile, error: profileError } = await supabaseAdmin
@@ -146,7 +150,14 @@ export async function refresh(req, res, next) {
       .eq('id', data.user.id)
       .single();
 
-    if (profileError || !profile) {
+    if (profileError) {
+      // A database outage must not force a user to sign out.
+      return res.status(503).json({
+        error: 'Your account could not be checked right now. Try again.',
+        code: 'AUTH_UNAVAILABLE',
+      });
+    }
+    if (!profile) {
       clearAuthCookies(res);
       return res.status(401).json({ error: 'Your account profile could not be loaded.', code: 'PROFILE_NOT_FOUND' });
     }
@@ -156,7 +167,7 @@ export async function refresh(req, res, next) {
       return res.status(403).json({ error: 'This account has been suspended. Please contact support.', code: 'ACCOUNT_SUSPENDED' });
     }
 
-    const csrfToken = setAuthCookies(res, data.session);
+    const csrfToken = setAuthCookies(res, data.session, { csrfToken: req.cookies?.csrf_token });
 
     res.json({
       message: 'Session refreshed.',
@@ -190,7 +201,7 @@ export async function getMe(req, res) {
   res.json({
     user: { id: req.user.id, email: req.user.email },
     profile: req.profile,
-    csrfToken: req.cookies?.csrf_token,
+    csrfToken: ensureCsrfCookie(req, res),
   });
 }
 
