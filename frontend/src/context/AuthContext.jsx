@@ -48,6 +48,17 @@ export function AuthProvider({ children }) {
             return isCurrent() ? applySession(data) : null;
           } catch (refreshError) {
             lastError = refreshError;
+            // Two tabs may attempt to rotate one Supabase refresh token.
+            // Before declaring logout, see whether the other tab has already
+            // saved a fresh access cookie.
+            if (refreshError.response?.status === 401) {
+              try {
+                const { data } = await api.get('/auth/me');
+                return isCurrent() ? applySession(data) : null;
+              } catch (recheckError) {
+                lastError = recheckError;
+              }
+            }
           }
         }
 
