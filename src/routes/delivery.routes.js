@@ -26,7 +26,7 @@ const router = Router();
 // treat them as an orderId.
 router.get('/my-deliveries', requireAuth, requireRole('delivery_agent', 'admin'), listMyDeliveries);
 router.get('/my-deliveries/history', requireAuth, requireRole('delivery_agent', 'admin'), listMyDeliveryHistory);
-router.get('/available', requireAuth, requireRole('delivery_agent', 'admin'), listAvailableDeliveries);
+router.get('/available', requireAuth, requireRole('delivery_agent', 'admin'), validate({ query: availableDeliveriesQuerySchema }), listAvailableDeliveries);
 router.get(
   '/agents/search',
   requireAuth,
