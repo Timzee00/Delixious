@@ -4,6 +4,7 @@ import api from '../lib/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import RestaurantCard from '../components/RestaurantCard.jsx';
 import { GridSkeleton, EmptyState, ErrorState } from '../components/StateViews.jsx';
+import { SearchField } from '../components/ui/Primitives.jsx';
 
 const CUISINES = ['All', 'Nigerian', 'Continental', 'Chinese', 'Fast Food', 'Grills', 'Seafood', 'Pastries'];
 
@@ -75,7 +76,7 @@ export default function Restaurants() {
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <div><Link to="/" className="text-sm font-medium text-pepper hover:underline">Back to home</Link><h1 className="mt-2 font-display text-3xl font-bold text-ink">All restaurants</h1><p className="mt-1 max-w-2xl text-sm text-ink-soft">Find a restaurant by name, cuisine, or opening status.</p></div>
       <div className="ticket mt-6 p-4 sm:p-5">
-        <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search for your restaurant..." aria-label="Search restaurants" className="w-full rounded-lg border border-hairline bg-paper px-4 py-3 text-ink placeholder:text-ink-soft/60" />
+        <SearchField id="restaurant-search" label="Search restaurants" value={query} onChange={setQuery} placeholder="Search restaurants..." />
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {CUISINES.map((item) => <button key={item} type="button" onClick={() => setCuisine(item)} className={`rounded-full border px-3 py-1.5 text-sm font-medium ${cuisine === item ? 'border-pepper bg-pepper/10 text-pepper' : 'border-hairline text-ink-soft hover:border-ink-soft'}`}>{item}</button>)}
           <label className="ml-1 flex items-center gap-2 text-sm text-ink-soft"><input type="checkbox" checked={openOnly} onChange={(event) => setOpenOnly(event.target.checked)} className="accent-pepper" />Open now</label>
