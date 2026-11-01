@@ -164,18 +164,25 @@ export async function assignAgent(req, res, next) {
 
 export async function listAvailableDeliveries(req, res, next) {
   try {
-    const { data, error } = await supabaseAdmin
+    if (req.profile.role !== 'admin' && req.profile.rider_approval_status !== 'approved') {
+      return res.status(403).json({ error: 'Only approved riders can browse available deliveries.' });
+    }
+    const { page = 1, limit = 20 } = req.query;
+    const from = (page - 1) * limit;
+
+    // Filter in PostgreSQL *before* pagination; fetching and filtering every
+    // pending delivery in JavaScript grows without bounds at marketplace scale.
+    const { data, error, count } = await supabaseAdmin
       .from('delivery_tracking')
-      .select('*, orders(id, delivery_address, total_amount, status, payment_status, restaurants(name, address))')
+      .select('order_id, status, updated_at, orders!inner(id, delivery_address, total_amount, rider_payout_amount, status, payment_status, restaurants(name, address))', { count: 'exact' })
       .eq('status', 'pending')
       .is('delivery_agent_id', null)
-      .order('updated_at', { ascending: true });
+      .eq('orders.payment_status', 'paid')
+      .in('orders.status', CLAIMABLE_ORDER_STATUSES)
+      .order('updated_at', { ascending: true })
+      .range(from, from + limit - 1);
     if (error) throw error;
-
-    const deliveries = (data || []).filter((d) =>
-      d.orders?.payment_status === 'paid' && CLAIMABLE_ORDER_STATUSES.includes(d.orders?.status)
-    );
-    res.json({ deliveries });
+    res.json({ deliveries: data || [], total: count || 0, page, limit });
   } catch (err) {
     next(err);
   }
