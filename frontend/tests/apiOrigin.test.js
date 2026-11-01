@@ -6,4 +6,14 @@ describe('browser transport routing', () => {
     expect(api.defaults.baseURL).toBe('/api');
     expect(api.defaults.withCredentials).toBe(true);
   });
+  it('does not treat a misrouted HTML page as a successful JSON response', async () => {
+    const adapter = async config => ({
+      config, data: '<!DOCTYPE html><html><body>App</body></html>',
+      headers: { 'content-type': 'text/html' },
+      status: 200, statusText: 'OK',
+    });
+    await expect(api.get('/auth/me', { adapter })).rejects.toMatchObject({
+      code: 'API_PROXY_MISCONFIGURED',
+    });
+  });
 });
