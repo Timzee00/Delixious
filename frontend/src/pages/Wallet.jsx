@@ -2,34 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import api from '../lib/api.js';
+import Icon from '../components/ui/Icon.jsx';
+import { Button, InlineStatus } from '../components/ui/Primitives.jsx';
 
 const formatNaira = (kobo = 0) => new Intl.NumberFormat('en-NG', {
   style: 'currency', currency: 'NGN', minimumFractionDigits: 2, maximumFractionDigits: 2,
 }).format(Number(kobo) / 100);
 
 const KIND_LABELS = { customer: 'Personal wallet', restaurant: 'Restaurant wallet', rider: 'Rider wallet' };
-
-function Icon({ name, size = 20, className = '' }) {
-  const common = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true, className };
-  const shapes = {
-    wallet: <><rect x="3" y="5" width="18" height="15" rx="3" /><path d="M3 9h18" /><path d="M16 14h2" /></>,
-    arrowUp: <><path d="m7 17 10-10M8 7h9v9" /></>,
-    arrowDown: <><path d="m7 7 10 10M7 17h9V8" /></>,
-    shield: <><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" /><path d="m9 12 2 2 4-4" /></>,
-    clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
-    lock: <><rect x="5" y="10" width="14" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></>,
-    refresh: <><path d="M20 11a8 8 0 0 0-14-5L4 8M4 4v4h4" /><path d="M4 13a8 8 0 0 0 14 5l2-2m0 4v-4h-4" /></>,
-    store: <><path d="m3 10 2-7h14l2 7v2a3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0v-2ZM5 16v5h14v-5" /></>,
-    bike: <><circle cx="5.5" cy="17.5" r="3.5" /><circle cx="18.5" cy="17.5" r="3.5" /><path d="m12 17.5-4-8h6l4.5 8M9.5 11l-4 6.5M13 7h3" /></>,
-    receipt: <><path d="M4 3h16v18l-4-2-4 2-4-2-4 2V3Z" /><path d="M8 8h8M8 12h6" /></>,
-    bank: <><path d="m3 10 9-7 9 7M4 10h16M6 10v9m4-9v9m4-9v9m4-9v9M3 21h18" /></>,
-    info: <><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 7h.01" /></>,
-    chevron: <path d="m9 18 6-6-6-6" />,
-    settings: <><path d="M4 7h16M4 17h16" /><circle cx="9" cy="7" r="2" fill="currentColor" stroke="none" /><circle cx="16" cy="17" r="2" fill="currentColor" stroke="none" /></>,
-    check: <path d="m5 12 4 4L19 6" />,
-  };
-  return <svg {...common}>{shapes[name] || shapes.wallet}</svg>;
-}
 
 function InfoCard({ icon, label, value, note }) {
   return (
@@ -109,9 +89,7 @@ function AdminFeeSettings({ settings, onSave }) {
         ))}
         <div className="sm:col-span-3 flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs text-ink-soft">Provider transaction and withdrawal fees are separate.</p>
-          <button type="submit" disabled={saving} className="rounded-xl bg-pepper px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-pepper-dark disabled:opacity-60">
-            {saving ? 'Saving…' : 'Save changes'}
-          </button>
+          <Button type="submit" busy={saving} disabled={saving} className="min-w-[150px]">Save changes</Button>
         </div>
       </form>
       {error && <p role="alert" className="mt-3 rounded-lg bg-danger/10 p-3 text-sm text-danger">{error}</p>}
@@ -182,7 +160,7 @@ export default function Wallet() {
         </button>
       </div>
 
-      {error && <div role="alert" className="mt-5 rounded-xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div>}
+      {error && <InlineStatus tone="error" className="mt-5">{error}</InlineStatus>}
 
       {overview && (
         <div className="mt-6 flex items-start gap-3 rounded-xl border border-hairline bg-paper px-4 py-3">
