@@ -8,6 +8,12 @@ export default defineConfig({
     // In development, proxy /api to Express (port 5000) for same-origin cookies.
     proxy: { '/api': { target: 'http://localhost:5000', changeOrigin: true } },
   },
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./tests/setup.js'],
+    clearMocks: true,
+    restoreMocks: true,
+  },
   build: {
     rollupOptions: {
       output: {
