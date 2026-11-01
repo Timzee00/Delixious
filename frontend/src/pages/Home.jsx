@@ -55,6 +55,7 @@ export default function Home() {
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
 
     async function loadFoods() {
       setFoodLoading(true);
@@ -67,17 +68,18 @@ export default function Home() {
             ...(debouncedQuery ? { q: debouncedQuery } : {}),
             ...(cuisine !== 'All' ? { cuisine } : {}),
           },
+          signal: controller.signal,
         });
         if (!cancelled) setFoods(data.menu_items || []);
       } catch (err) {
-        if (!cancelled) setFoodError(err.response?.data?.error || 'Could not load dishes right now.');
+        if (!cancelled && err.code !== 'ERR_CANCELED') setFoodError(err.response?.data?.error || 'Could not load dishes right now.');
       } finally {
         if (!cancelled) setFoodLoading(false);
       }
     }
 
     loadFoods();
-    return () => { cancelled = true; };
+    return () => { cancelled = true; controller.abort(); };
   }, [debouncedQuery, cuisine]);
 
   useEffect(() => {
@@ -175,7 +177,7 @@ export default function Home() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
       <section className="ticket overflow-hidden p-6 sm:p-10">
-        <p className="font-mono text-xs uppercase tracking-widest text-pepper">Lagos · Abuja · Port Harcourt</p>
+        <p className="font-mono text-xs uppercase tracking-widest text-pepper">Discover food from local restaurants</p>
         <div className="mt-3 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
             <h1 className="font-display text-3xl font-bold leading-tight text-ink sm:text-5xl">What are you eating today?</h1>
