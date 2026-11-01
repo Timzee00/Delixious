@@ -17,6 +17,7 @@ import {
   updateLocationSchema,
   updateDeliveryStatusSchema,
   searchAgentsQuerySchema,
+  availableDeliveriesQuerySchema,
 } from '../schemas/delivery.schema.js';
 
 const router = Router();
