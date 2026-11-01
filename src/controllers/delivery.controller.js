@@ -62,7 +62,12 @@ async function payoutRider(order) {
     .update({ rider_payout_reference: reference })
     .eq('id', order.id)
     .eq('rider_payout_status', 'processing');
-  if (referenceError) throw referenceError;
+  if (referenceError) {
+    // Delivery status is already persisted. Keep this as a recoverable
+    // payout incident instead of telling the rider delivery failed.
+    console.error('Unable to link rider transfer reference', { orderId: order.id, message: referenceError.message });
+    return;
+  }
 
   try {
     const transfer = await initiateTransfer({
