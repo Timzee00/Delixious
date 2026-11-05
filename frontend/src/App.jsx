@@ -7,6 +7,7 @@ import ErrorBoundary from './components/ErrorBoundary.jsx';
 import PageLoader from './components/PageLoader.jsx';
 
 const Home = lazy(() => import('./pages/Home.jsx'));
+const AccountHub = lazy(() => import('./pages/AccountHub.jsx'));
 const Restaurants = lazy(() => import('./pages/Restaurants.jsx'));
 const Favorites = lazy(() => import('./pages/Favorites.jsx'));
 const Login = lazy(() => import('./pages/Login.jsx'));
@@ -34,11 +35,13 @@ export default function App() {
     <div className="flex min-h-screen flex-col bg-sand">
       <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-pepper focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white">Skip to main content</a>
       <Navbar />
-      <main id="main-content" className="flex-1">
+      <main id="main-content" className="flex-1 pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0">
         <ErrorBoundary>
           <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/explore" element={<Home explore />} />
+              <Route path="/account" element={<AccountHub />} />
               <Route path="/restaurants" element={<Restaurants />} />
               <Route path="/restaurants/:id" element={<RestaurantDetail />} />
               <Route path="/login" element={<Login />} />
