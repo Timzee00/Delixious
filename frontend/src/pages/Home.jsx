@@ -62,6 +62,9 @@ export default function Home({ explore = false }) {
   const [cuisine, setCuisine] = useState('All');
   const [openOnly, setOpenOnly] = useState(false);
   const [maxPrice, setMaxPrice] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [foodRetry, setFoodRetry] = useState(0);
+  const [restaurantRetry, setRestaurantRetry] = useState(0);
   const [foods, setFoods] = useState([]);
   const [restaurants, setRestaurants] = useState([]);
   const [favoriteFoods, setFavoriteFoods] = useState([]);
@@ -107,20 +110,20 @@ export default function Home({ explore = false }) {
         if (!controller.signal.aborted) setFoodLoading(false);
       });
     return () => controller.abort();
-  }, [debouncedQuery, cuisine, openOnly, maxPrice]);
+  }, [debouncedQuery, cuisine, openOnly, maxPrice, foodRetry]);
 
   useEffect(() => {
     const controller = new AbortController();
     setRestaurantLoading(true);
     setRestaurantError('');
-    api.get('/restaurants', { params: { page: 1, limit: 8 }, signal: controller.signal })
+    api.get('/restaurants', { params: { page: 1, limit: 8, ...(debouncedQuery ? { search: debouncedQuery } : {}), ...(openOnly ? { is_open: 'true' } : {}) }, signal: controller.signal })
       .then(({ data }) => setRestaurants(data.restaurants || []))
       .catch(err => {
         if (err.code !== 'ERR_CANCELED') setRestaurantError(err.response?.data?.error || 'Could not load restaurants.');
       })
       .finally(() => { if (!controller.signal.aborted) setRestaurantLoading(false); });
     return () => controller.abort();
-  }, []);
+  }, [debouncedQuery, openOnly, restaurantRetry]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -289,8 +292,12 @@ export default function Home({ explore = false }) {
         {chip(openOnly, 'Open now', () => setOpenOnly(v => !v))}
         {chip(maxPrice, 'Under ₦3,000', () => setMaxPrice(v => !v))}
         <Link to="/restaurants" className="inline-flex min-h-10 shrink-0 items-center rounded-full border border-hairline bg-paper px-4 py-2 text-xs font-semibold text-ink-soft hover:border-pepper hover:text-pepper sm:text-sm">Top rated kitchens</Link>
+        <button type="button" onClick={() => setFiltersOpen(value => !value)} aria-expanded={filtersOpen} aria-controls="food-cuisines" className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-full border border-hairline bg-paper px-4 py-2 text-xs font-semibold text-ink-soft hover:border-pepper hover:text-pepper sm:text-sm"><Icon name="settings" size={15}/> More filters</button>
         {hasFilters && chip(false, 'Clear filters', resetFilters)}
       </section>
+      {filtersOpen && <div id="food-cuisines" className="mt-3 flex flex-wrap gap-2" aria-label="Filter by cuisine">
+        {CUISINES.map(item => chip(cuisine === item, item, () => setCuisine(item)))}
+      </div>}
 
       {isAuthenticated && favoriteFoods.length > 0 && !hasFilters && !explore && <section className="mt-9">
         <SectionTitle eyebrow="MADE FOR YOU" title="From your favorite kitchens"
@@ -307,7 +314,7 @@ export default function Home({ explore = false }) {
           {debouncedQuery && <p className="mt-1 text-sm text-ink-soft">Results for “{debouncedQuery}”</p>}
         </SectionTitle>
         {foodLoading ? <GridSkeleton/> : foodError ? (
-          <ErrorState message={foodError} onRetry={() => { setCuisine(v => v === 'All' ? '' : 'All'); }} />
+          <ErrorState message={foodError} onRetry={() => setFoodRetry(value => value + 1)} />
         ) : foods.length ? (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
             {foods.map(item => <FoodCard key={item.id} item={item} onAdd={addToCart} adding={addBusy === item.id}/>)}
@@ -332,7 +339,7 @@ export default function Home({ explore = false }) {
       <section className="mt-12">
         <SectionTitle eyebrow="EXPLORE BY RESTAURANT" title="Restaurants on Delixious"
           action={<Link to="/restaurants" className="text-sm font-semibold text-pepper hover:underline">See all restaurants</Link>}/>
-        {restaurantLoading ? <GridSkeleton/> : restaurantError ? <ErrorState message={restaurantError}/> : restaurants.length ? (
+        {restaurantLoading ? <GridSkeleton/> : restaurantError ? <ErrorState message={restaurantError} onRetry={() => setRestaurantRetry(value => value + 1)}/> : restaurants.length ? (
           <div className="no-scrollbar flex snap-x gap-4 overflow-x-auto pb-3">
             {restaurants.map(restaurant => <div key={restaurant.id} className="w-[264px] shrink-0 snap-start sm:w-[308px]">
               <RestaurantCard restaurant={restaurant} isFavorite={favoriteIds.has(restaurant.id)}
