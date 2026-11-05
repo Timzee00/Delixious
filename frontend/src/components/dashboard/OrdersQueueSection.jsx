@@ -5,18 +5,9 @@ import Modal from '../Modal.jsx';
 
 const PAGE_SIZE = 20;
 
-const NEXT_STATUS = {
-  pending: 'confirmed',
-  confirmed: 'preparing',
-  preparing: 'out_for_delivery',
-  out_for_delivery: 'delivered',
-};
-const NEXT_LABEL = {
-  pending: 'Confirm order',
-  confirmed: 'Start preparing',
-  preparing: 'Mark out for delivery',
-  out_for_delivery: 'Mark delivered',
-};
+// Restaurants prepare orders; pickup and delivery are rider-controlled.
+const NEXT_STATUS = { confirmed: 'preparing' };
+const NEXT_LABEL = { confirmed: 'Start preparing' };
 
 const STATUS_STYLES = {
   pending: 'bg-gold text-white',
@@ -130,6 +121,9 @@ export default function OrdersQueueSection({ restaurant }) {
                     >
                       Assign rider
                     </button>
+                  )}
+                  {order.status === 'preparing' && (
+                    <span className="text-xs text-ink-soft">Await rider pickup to dispatch</span>
                   )}
                   {NEXT_STATUS[order.status] && (
                     <button

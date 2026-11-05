@@ -8,29 +8,37 @@ function formatMoney(value) {
 export default function AvailableDeliveriesSection() {
   const [deliveries, setDeliveries] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [claiming, setClaiming] = useState(null);
   const [error, setError] = useState('');
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (nextPage = 1) => {
+    if (nextPage > 1) setLoadingMore(true);
+    else setLoading(true);
     setError('');
     try {
-      const { data } = await api.get('/delivery/available');
-      setDeliveries(data.deliveries || []);
+      const { data } = await api.get('/delivery/available', { params: { page: nextPage, limit: 20 } });
+      setDeliveries(prev => nextPage === 1 ? (data.deliveries || []) : [...prev, ...(data.deliveries || [])]);
+      setTotal(data.total || 0);
+      setPage(nextPage);
     } catch (err) {
       setError(err.response?.data?.error || 'Unable to load available deliveries.');
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(1); }, [load]);
 
   async function claim(orderId) {
     setClaiming(orderId);
     setError('');
     try {
       await api.patch(`/delivery/${orderId}/claim`);
-      await load();
+      await load(1);
     } catch (err) {
       setError(err.response?.data?.error || 'Unable to claim this delivery. It may have just been taken by another rider.');
     } finally {
@@ -52,7 +60,7 @@ export default function AvailableDeliveriesSection() {
         </button>
       </div>
 
-      {error && <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {error && <p role="alert" className="mt-4 rounded-lg border border-danger/20 bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
 
       {!deliveries.length && !error ? (
         <div className="mt-6 rounded-xl border border-hairline p-6 text-center text-sm text-ink-soft">
@@ -93,6 +101,12 @@ export default function AvailableDeliveriesSection() {
             );
           })}
         </div>
+      )}
+      {deliveries.length < total && (
+        <button type="button" onClick={() => load(page + 1)} disabled={loadingMore}
+          className="mt-5 flex min-h-11 w-full items-center justify-center rounded-xl border border-hairline bg-paper text-sm font-semibold text-ink hover:border-pepper focus-visible:outline focus-visible:outline-2 focus-visible:outline-pepper disabled:opacity-60">
+          {loadingMore ? 'Loading more deliveries…' : 'Load more deliveries'}
+        </button>
       )}
     </section>
   );

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../lib/api.js';
 import RestaurantProfileSection from '../components/dashboard/RestaurantProfileSection.jsx';
 import MenuManagementSection from '../components/dashboard/MenuManagementSection.jsx';
@@ -62,7 +63,10 @@ export default function Dashboard() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-display text-2xl font-bold text-ink">Restaurant dashboard</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="font-display text-2xl font-bold text-ink">Restaurant dashboard</h1>
+          <Link to="/wallet" className="rounded-lg border border-pepper px-3 py-2 text-xs font-semibold text-pepper hover:bg-pepper hover:text-white">Wallet</Link>
+        </div>
         {restaurants.length > 1 && (
           <select
             value={activeId}

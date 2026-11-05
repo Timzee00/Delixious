@@ -119,7 +119,10 @@ export default function OrderTrackingPage() {
 
   const stepIndex = STEPS.indexOf(order.status);
   const isCancelled = order.status === 'cancelled';
-  const canCancel = ['pending', 'confirmed'].includes(order.status);
+  const canCancel = ['pending', 'confirmed'].includes(order.status)
+    && ['pending', 'failed'].includes(order.payment_status)
+    && !order.payment_reference;
+  const needsCancellationSupport = ['pending', 'confirmed', 'preparing'].includes(order.status) && !canCancel;
   const mapsUrl =
     tracking?.current_lat && tracking?.current_lng
       ? `https://www.google.com/maps?q=${tracking.current_lat},${tracking.current_lng}`
@@ -196,8 +199,15 @@ export default function OrderTrackingPage() {
 
         {canCancel && (
           <button onClick={() => setConfirmCancel(true)} className="mt-6 text-sm font-medium text-danger hover:underline">
-            Cancel this order
+            Cancel this unpaid order
           </button>
+        )}
+        {needsCancellationSupport && (
+          <p className="mt-6 text-sm text-ink-soft">
+            Need to cancel or request a refund?{' '}
+            <Link to="/contact" className="font-semibold text-pepper underline">Contact Delixious support</Link>.
+            Cancelling a paid order does not automatically refund a charge.
+          </p>
         )}
       </div>
 

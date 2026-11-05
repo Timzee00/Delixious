@@ -1,11 +1,13 @@
 import axios from 'axios';
 import { getCsrfToken, setCsrfToken } from './csrf.js';
 
-// Production uses the same-origin Express API. VITE_API_URL remains available
-// for local development or a separately hosted API.
+// Use a first-party API URL in every environment. Vite and Netlify proxy /api
+// to the server while the browser retains its own origin for auth cookies.
+// Ignore an old VITE_API_URL value that points to a separate backend.
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
+  baseURL: '/api',
   withCredentials: true,
+  timeout: 25000,
 });
 
 const MUTATING_METHODS = new Set(['post', 'put', 'patch', 'delete']);
@@ -24,11 +26,26 @@ export function setUnauthorizedHandler(fn) {
 }
 
 let refreshPromise = null;
+let csrfRepairPromise = null;
+
+// If a browser lost its readable CSRF cookie but retained its httpOnly
+// session, /auth/me can reissue the missing cookie without a logout.
+async function repairCsrfCookie() {
+  if (!csrfRepairPromise) {
+    csrfRepairPromise = api.get('/auth/me')
+      .then(({ data }) => setCsrfToken(data.csrfToken))
+      .finally(() => { csrfRepairPromise = null; });
+  }
+  return csrfRepairPromise;
+}
 
 async function refreshSession() {
   if (!refreshPromise) {
     refreshPromise = api.post('/auth/refresh')
       .then((res) => {
+        if (!res.data?.user?.id || !res.data?.profile?.id) {
+          throw new Error('The server did not return a valid session.');
+        }
         setCsrfToken(res.data.csrfToken);
         return res;
       })
@@ -40,7 +57,17 @@ async function refreshSession() {
 }
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // A missing /api Netlify rewrite can serve index.html with HTTP 200.
+    // Treat HTML as a transport error, never as a successful login/checkout.
+    if (typeof response.data === 'string' && /^\s*(?:<!doctype html|<html\b)/i.test(response.data.slice(0, 256))) {
+      const error = new Error('Delixious API routing is unavailable. Please try again shortly.');
+      error.code = 'API_PROXY_MISCONFIGURED';
+      error.config = response.config;
+      return Promise.reject(error);
+    }
+    return response;
+  },
   async (error) => {
     const { config, response } = error;
     const isAuthRefreshRequest = config?.url?.endsWith('/auth/refresh');
@@ -51,6 +78,18 @@ api.interceptors.response.use(
     // The refresh request itself must never recursively trigger another refresh.
     if (isAuthRefreshRequest) {
       return Promise.reject(error);
+    }
+
+    // The server rejects CSRF failures before reaching a business handler.
+    // Repair the cookie through a safe GET, then retry at most once.
+    if (response?.status === 403 && response?.data?.code === 'CSRF_TOKEN_INVALID' && config && !config._csrfRetried) {
+      config._csrfRetried = true;
+      try {
+        await repairCsrfCookie();
+        return api(config);
+      } catch (repairError) {
+        return Promise.reject(repairError);
+      }
     }
 
     // Expired access tokens can be recovered using the httpOnly refresh cookie.

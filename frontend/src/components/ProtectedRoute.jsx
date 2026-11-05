@@ -1,17 +1,15 @@
+import SessionIssue from './SessionIssue.jsx';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import PageLoader from './PageLoader.jsx';
 
 export default function ProtectedRoute({ children, roles }) {
-  const { isAuthenticated, profile, loading } = useAuth();
+  const { isAuthenticated, profile, loading, sessionIssue, retrySession } = useAuth();
   const location = useLocation();
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <span className="font-mono text-sm text-ink-soft">Loading...</span>
-      </div>
-    );
-  }
+  if (loading) return <PageLoader label="Checking your session…" />;
+
+  if (!isAuthenticated && sessionIssue) return <SessionIssue onRetry={retrySession} message={sessionIssue} />;
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;

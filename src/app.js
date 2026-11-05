@@ -1,4 +1,5 @@
 import adminRoutes from './routes/admin.routes.js';
+import walletRoutes from './routes/wallet.routes.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -38,6 +39,12 @@ app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173', cred
 app.use(cookieParser());
 app.use(express.json({ limit: '2mb', verify: (req, res, buf) => { req.rawBody = buf; } }));
 app.use(requestContext);
+// Dynamic customer, order, account and payment responses must never be cached
+// by an intermediate reverse proxy or shared CDN.
+app.use('/api', (req, res, next) => {
+  res.set('Cache-Control', 'private, no-store');
+  next();
+});
 app.use(csrfProtection);
 
 const limiter = rateLimit({
@@ -67,6 +74,7 @@ app.use('/api/reviews', reviewsRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/favorites', favoritesRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/wallet', walletRoutes);
 
 // Production deployment: Render serves the React/Vite frontend from this
 // same Express service. This keeps browser auth cookies and API requests on
