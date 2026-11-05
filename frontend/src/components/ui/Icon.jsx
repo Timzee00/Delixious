@@ -5,6 +5,12 @@ import React from 'react';
  * decorative when nested beside text. Always inline SVG; never emoji glyphs.
  */
 const PATHS = {
+  'map-pin': <><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" /><circle cx="12" cy="10" r="2.7" /></>,
+  'chevron-down': <path d="m6 9 6 6 6-6" />,
+  compass: <><circle cx="12" cy="12" r="9" /><path d="m15.4 8.6-2.5 4.3-4.3 2.5 2.5-4.3 4.3-2.5Z" /></>,
+  heart: <path d="M20.8 8.5c0 4-8.8 10.5-8.8 10.5S3.2 12.5 3.2 8.5a4.9 4.9 0 0 1 8.8-2.9 4.9 4.9 0 0 1 8.8 2.9Z" />,
+  star: <path d="m12 2.9 2.9 6 6.6.9-4.8 4.7 1.2 6.6-5.9-3.1-5.9 3.1 1.1-6.6-4.7-4.7 6.6-.9 2.9-6Z" />,
+  'arrow-right': <path d="M4 12h16m-6-6 6 6-6 6" />,
   home: <><path d="m3 10 9-7 9 7v10H3V10Z" /><path d="M9 20v-7h6v7" /></>,
   search: <><circle cx="11" cy="11" r="7" /><path d="m16 16 4.5 4.5" /></>,
   bell: <><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></>,
