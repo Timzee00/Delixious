@@ -3,10 +3,11 @@ import { Link } from 'react-router-dom';
 import api from '../lib/api.js';
 import { useCart } from '../context/CartContext.jsx';
 import { formatNaira } from '../lib/format.js';
+import { getDeliveryAddress, saveDeliveryAddress } from '../lib/deliveryAddress.js';
 
 export default function Checkout() {
   const { cart, cartError, refreshCart } = useCart();
-  const [address, setAddress] = useState('');
+  const [address, setAddress] = useState(getDeliveryAddress);
   const [coords, setCoords] = useState(null);
   const [locating, setLocating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -97,6 +98,7 @@ export default function Checkout() {
     setError('');
     setSubmitting(true);
     try {
+      saveDeliveryAddress(address);
       const { data } = await api.post('/orders/checkout', {
         delivery_address: address.trim(),
         delivery_lat: coords?.lat,
@@ -144,12 +146,14 @@ export default function Checkout() {
 
       <form onSubmit={handleSubmit} className="ticket mt-6 space-y-4 p-6">
         <h2 className="font-display text-sm font-bold uppercase tracking-wide text-ink-soft">Delivery address</h2>
+        <label htmlFor="checkout-delivery-address" className="block text-sm font-semibold text-ink">Street address and directions</label>
         <textarea
+          id="checkout-delivery-address"
           value={address}
-          onChange={(e) => setAddress(e.target.value)}
+          onChange={(e) => { setAddress(e.target.value); setCoords(null); }}
           rows={3}
           placeholder="e.g. 12 Admiralty Way, Lekki Phase 1, Lagos"
-          className="w-full rounded-lg border border-hairline bg-paper px-3 py-2 text-ink placeholder:text-ink-soft/60 focus:border-pepper"
+          className="w-full resize-none rounded-lg border border-hairline bg-paper px-3 py-2 text-ink placeholder:text-ink-soft/60 focus:border-pepper"
         />
         <button
           type="button"
