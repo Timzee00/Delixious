@@ -7,7 +7,7 @@ const FEED_FIELDS = `
 
 export async function listMenuFeed(req, res, next) {
   try {
-    const { q, cuisine, restaurant_ids, page, limit } = req.query;
+    const { q, cuisine, open_only, max_price, restaurant_ids, page, limit } = req.query;
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
@@ -21,6 +21,8 @@ export async function listMenuFeed(req, res, next) {
 
     if (q) query = query.or(`name.ilike.%${q}%,description.ilike.%${q}%`);
     if (cuisine) query = query.eq('restaurants.cuisine_type', cuisine);
+    if (open_only === 'true') query = query.eq('restaurants.is_open', true);
+    if (max_price !== undefined) query = query.lte('price', max_price);
     if (restaurant_ids) {
       const ids = restaurant_ids.split(',').map((id) => id.trim()).filter(Boolean);
       if (ids.length) query = query.in('restaurant_id', ids);
