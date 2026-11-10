@@ -13,6 +13,11 @@ export const updateDeliveryStatusSchema = z.object({
   status: z.enum(['assigned', 'picked_up', 'en_route', 'delivered']),
 });
 
+export const availableDeliveriesQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+});
+
 export const searchAgentsQuerySchema = z.object({
   phone: z.string().trim().min(3, "Provide at least 3 digits of the agent's phone number."),
 });

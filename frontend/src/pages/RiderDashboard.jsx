@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import AvailableDeliveriesSection from '../components/rider/AvailableDeliveriesSection.jsx';
 import MyDeliveriesSection from '../components/rider/MyDeliveriesSection.jsx';
@@ -15,7 +16,10 @@ export default function RiderDashboard() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
-      <h1 className="font-display text-2xl font-bold text-ink">Rider Dashboard</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="font-display text-2xl font-bold text-ink">Rider Dashboard</h1>
+        <Link to="/wallet" className="rounded-lg border border-pepper px-3 py-2 text-xs font-semibold text-pepper hover:bg-pepper hover:text-white">Wallet</Link>
+      </div>
 
       {!isApproved && (
         <p className="mt-4 rounded-lg bg-sand px-3 py-2 text-sm text-ink-soft">

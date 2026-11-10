@@ -25,7 +25,10 @@ export function csrfProtection(req, res, next) {
   const headerToken = req.headers['x-csrf-token'];
 
   if (!cookieToken || !headerToken || cookieToken !== headerToken) {
-    return res.status(403).json({ error: 'Invalid or missing CSRF token. Please refresh the page and try again.' });
+    return res.status(403).json({
+      error: 'Invalid or missing CSRF token. Please refresh the page and try again.',
+      code: 'CSRF_TOKEN_INVALID',
+    });
   }
 
   next();

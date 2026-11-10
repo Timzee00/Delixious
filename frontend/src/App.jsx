@@ -7,6 +7,7 @@ import ErrorBoundary from './components/ErrorBoundary.jsx';
 import PageLoader from './components/PageLoader.jsx';
 
 const Home = lazy(() => import('./pages/Home.jsx'));
+const AccountHub = lazy(() => import('./pages/AccountHub.jsx'));
 const Restaurants = lazy(() => import('./pages/Restaurants.jsx'));
 const Favorites = lazy(() => import('./pages/Favorites.jsx'));
 const Login = lazy(() => import('./pages/Login.jsx'));
@@ -27,17 +28,20 @@ const LegalPage = lazy(() => import('./pages/LegalPage.jsx'));
 const NotFound = lazy(() => import('./pages/NotFound.jsx'));
 const Admin = lazy(() => import('./pages/Admin.jsx'));
 const RiderDashboard = lazy(() => import('./pages/RiderDashboard.jsx'));
+const Wallet = lazy(() => import('./pages/Wallet.jsx'));
 
 export default function App() {
   return (
     <div className="flex min-h-screen flex-col bg-sand">
       <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-pepper focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white">Skip to main content</a>
       <Navbar />
-      <main id="main-content" className="flex-1">
+      <main id="main-content" className="flex-1 pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0">
         <ErrorBoundary>
           <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/explore" element={<Home explore />} />
+              <Route path="/account" element={<AccountHub />} />
               <Route path="/restaurants" element={<Restaurants />} />
               <Route path="/restaurants/:id" element={<RestaurantDetail />} />
               <Route path="/login" element={<Login />} />
@@ -52,6 +56,7 @@ export default function App() {
               <Route path="/orders" element={<ProtectedRoute><OrderHistory /></ProtectedRoute>} />
               <Route path="/orders/:id" element={<ProtectedRoute><OrderTrackingPage /></ProtectedRoute>} />
               <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+              <Route path="/wallet" element={<ProtectedRoute><Wallet /></ProtectedRoute>} />
               <Route path="/favorites" element={<ProtectedRoute roles={['customer', 'restaurant_owner', 'delivery_agent', 'admin']}><Favorites /></ProtectedRoute>} />
               <Route path="/hq" element={<ProtectedRoute roles={['admin']}><Admin /></ProtectedRoute>} />
               <Route path="/admin" element={<ProtectedRoute roles={['admin']}><Admin /></ProtectedRoute>} />

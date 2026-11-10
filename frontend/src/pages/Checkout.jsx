@@ -3,16 +3,29 @@ import { Link } from 'react-router-dom';
 import api from '../lib/api.js';
 import { useCart } from '../context/CartContext.jsx';
 import { formatNaira } from '../lib/format.js';
+import { getDeliveryAddress, saveDeliveryAddress } from '../lib/deliveryAddress.js';
 
 export default function Checkout() {
-  const { cart } = useCart();
-  const [address, setAddress] = useState('');
+  const { cart, cartError, refreshCart } = useCart();
+  const [address, setAddress] = useState(getDeliveryAddress);
   const [coords, setCoords] = useState(null);
   const [locating, setLocating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  if (!cart || !cart.items.length) {
+  if (!cart && cartError) {
+    return (
+      <section role="alert" className="mx-auto max-w-xl px-4 py-16 text-center">
+        <h1 className="font-display text-xl font-bold text-ink">Unable to check your cart</h1>
+        <p className="mt-3 text-sm text-ink-soft">{cartError}</p>
+        <button type="button" onClick={refreshCart} className="mt-5 min-h-11 rounded-xl bg-pepper px-5 py-2.5 font-semibold text-white">Retry</button>
+      </section>
+    );
+  }
+  if (!cart) {
+    return <p role="status" className="px-4 py-16 text-center text-sm text-ink-soft">Loading your cart…</p>;
+  }
+  if (!cart.items.length) {
     return (
       <div className="mx-auto max-w-md px-4 py-16 text-center">
         <div className="ticket p-10">
@@ -74,6 +87,10 @@ export default function Checkout() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (cartError) {
+      setError('Your cart could not be verified. Please retry the cart before paying.');
+      return;
+    }
     if (!address.trim()) {
       setError('Enter a delivery address.');
       return;
@@ -81,6 +98,7 @@ export default function Checkout() {
     setError('');
     setSubmitting(true);
     try {
+      saveDeliveryAddress(address);
       const { data } = await api.post('/orders/checkout', {
         delivery_address: address.trim(),
         delivery_lat: coords?.lat,
@@ -114,18 +132,28 @@ export default function Checkout() {
             <span className="text-ink-soft">Subtotal</span>
             <span className="font-mono font-semibold text-ink">{formatNaira(cart.subtotal)}</span>
           </div>
-          <p className="mt-1 text-xs text-ink-soft">Delivery fee is added at checkout.</p>
+          <div className="mt-3 flex items-center justify-between text-sm">
+            <span className="text-ink-soft">Delivery</span>
+            <span className="font-semibold text-jade">Covered by restaurant</span>
+          </div>
+          <div className="mt-3 flex items-center justify-between border-t border-hairline pt-3">
+            <span className="font-semibold text-ink">Total to pay</span>
+            <span className="font-display text-xl font-bold text-ink">{formatNaira(cart.subtotal)}</span>
+          </div>
+          <p className="mt-2 text-xs text-ink-soft">Restaurant commissions and delivery costs are deducted from restaurant earnings, not added to your food total.</p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="ticket mt-6 space-y-4 p-6">
         <h2 className="font-display text-sm font-bold uppercase tracking-wide text-ink-soft">Delivery address</h2>
+        <label htmlFor="checkout-delivery-address" className="block text-sm font-semibold text-ink">Street address and directions</label>
         <textarea
+          id="checkout-delivery-address"
           value={address}
-          onChange={(e) => setAddress(e.target.value)}
+          onChange={(e) => { setAddress(e.target.value); setCoords(null); }}
           rows={3}
           placeholder="e.g. 12 Admiralty Way, Lekki Phase 1, Lagos"
-          className="w-full rounded-lg border border-hairline bg-paper px-3 py-2 text-ink placeholder:text-ink-soft/60 focus:border-pepper"
+          className="w-full resize-none rounded-lg border border-hairline bg-paper px-3 py-2 text-ink placeholder:text-ink-soft/60 focus:border-pepper"
         />
         <button
           type="button"
@@ -133,14 +161,14 @@ export default function Checkout() {
           disabled={locating}
           className="text-sm font-medium text-pepper hover:underline disabled:opacity-60"
         >
-          {locating ? 'Locating...' : coords ? 'Location attached ✓' : 'Use my current location'}
+          {locating ? 'Locating...' : coords ? 'Location added' : 'Use my current location'}
         </button>
 
-        {error && <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
+        {(error || cartError) && <p role="alert" className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error || cartError}</p>}
 
         <button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || Boolean(cartError)}
           className="w-full rounded-lg bg-pepper py-3 font-semibold text-white transition-colors hover:bg-pepper-dark disabled:opacity-60"
         >
           {submitting ? 'Redirecting to payment...' : 'Pay with Paystack'}

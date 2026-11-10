@@ -9,18 +9,26 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [sessionIssue, setSessionIssue] = useState('');
   // Prevent an older startup request from overwriting a newer login.
   const sessionGeneration = useRef(0);
 
   const applySession = useCallback((data) => {
+    if (!data?.user?.id || !data?.profile?.id) {
+      const error = new Error('The server did not return a valid sign-in session. Please try again.');
+      error.code = 'INVALID_SESSION_RESPONSE';
+      throw error;
+    }
     setUser(data.user);
     setProfile(data.profile);
     setCsrfToken(data.csrfToken);
+    setSessionIssue('');
     return data.profile;
   }, []);
 
   const refreshProfile = useCallback(async () => {
     let lastError = null;
+    setSessionIssue('');
     const generation = sessionGeneration.current;
     const isCurrent = () => generation === sessionGeneration.current;
 
@@ -45,6 +53,17 @@ export function AuthProvider({ children }) {
             return isCurrent() ? applySession(data) : null;
           } catch (refreshError) {
             lastError = refreshError;
+            // Two tabs may attempt to rotate one Supabase refresh token.
+            // Before declaring logout, see whether the other tab has already
+            // saved a fresh access cookie.
+            if (refreshError.response?.status === 401) {
+              try {
+                const { data } = await api.get('/auth/me');
+                return isCurrent() ? applySession(data) : null;
+              } catch (recheckError) {
+                lastError = recheckError;
+              }
+            }
           }
         }
 
@@ -56,11 +75,17 @@ export function AuthProvider({ children }) {
       }
     }
 
-    // Only clear an existing session when the server explicitly says it is
-    // invalid/forbidden. Network failures must not wipe a valid local auth UI.
-    if (isCurrent() && (lastError?.response?.status === 401 || lastError?.response?.status === 403)) {
-      setUser(null);
-      setProfile(null);
+    if (isCurrent()) {
+      const status = lastError?.response?.status;
+      // Loading the API is not the same thing as being signed out. A sleeping
+      // server or failed network should offer Retry rather than redirect users
+      // to login and lose their current flow.
+      if (lastError && (!status || status >= 500)) {
+        setSessionIssue('We could not reach Delixious. Check your connection and try again.');
+      } else if (status === 401 || status === 403) {
+        setUser(null);
+        setProfile(null);
+      }
     }
     return null;
   }, [applySession]);
@@ -93,15 +118,20 @@ export function AuthProvider({ children }) {
   }
 
   async function logout() {
+    // A failed request must not pretend the server's httpOnly session cookie
+    // has been revoked: that would sign the user straight back in on refresh.
+    await api.post('/auth/logout');
     sessionGeneration.current += 1;
-    try {
-      await api.post('/auth/logout');
-    } catch {
-      // Ignore server errors; local auth state must still be cleared.
-    }
     setUser(null);
     setProfile(null);
     setCsrfToken(null);
+    setSessionIssue('');
+  }
+
+  async function retrySession() {
+    setLoading(true);
+    try { return await refreshProfile(); }
+    finally { setLoading(false); }
   }
 
   async function updateProfile(payload) {
@@ -114,6 +144,8 @@ export function AuthProvider({ children }) {
     user,
     profile,
     loading,
+    sessionIssue,
+    retrySession,
     login,
     signup,
     logout,

@@ -56,6 +56,18 @@ async function payoutRider(order) {
   }
 
   const reference = `rider_payout_${order.id}`;
+  // Store the reference BEFORE contacting Paystack so an early webhook can
+  // find the payout. Keep the status processing until transfer.success.
+  const { error: referenceError } = await supabaseAdmin.from('orders')
+    .update({ rider_payout_reference: reference })
+    .eq('id', order.id)
+    .eq('rider_payout_status', 'processing');
+  if (referenceError) {
+    // Delivery status is already persisted. Keep this as a recoverable
+    // payout incident instead of telling the rider delivery failed.
+    console.error('Unable to link rider transfer reference', { orderId: order.id, message: referenceError.message });
+    return;
+  }
 
   try {
     const transfer = await initiateTransfer({
@@ -65,16 +77,19 @@ async function payoutRider(order) {
       reference,
     });
 
-    await supabaseAdmin
-      .from('orders')
-      .update({
-        rider_payout_status: transfer.status ? 'paid' : 'failed',
-        rider_payout_reference: reference,
-      })
-      .eq('id', order.id)
-      .eq('rider_payout_status', 'processing');
-  } catch {
-    await supabaseAdmin.from('orders').update({ rider_payout_status: 'failed' }).eq('id', order.id).eq('rider_payout_status', 'processing');
+    if (!transfer.status) {
+      // Explicit provider refusal is final for this attempt.
+      await supabaseAdmin.from('orders')
+        .update({ rider_payout_status: 'failed' })
+        .eq('id', order.id)
+        .eq('rider_payout_status', 'processing');
+    }
+    // A 200 response usually means queued, not settled. A signed
+    // transfer.success webhook confirms the paid status.
+  } catch (err) {
+    // A timeout can happen AFTER Paystack accepted the transfer. Keep the
+    // stable reference and processing state for manual reconciliation.
+    console.error('Rider payout requires reconciliation', { orderId: order.id, message: err.message });
   }
 }
 
@@ -126,10 +141,14 @@ export async function assignAgent(req, res, next) {
 
     const { data, error } = await supabaseAdmin
       .from('delivery_tracking')
-      .upsert({ order_id: order.id, delivery_agent_id, status: 'assigned' }, { onConflict: 'order_id' })
+      .update({ delivery_agent_id, status: 'assigned', claimed_at: new Date().toISOString() })
+      .eq('order_id', order.id)
+      .eq('status', 'pending')
+      .is('delivery_agent_id', null)
       .select()
-      .single();
+      .maybeSingle();
     if (error) throw error;
+    if (!data) return res.status(409).json({ error: 'This delivery already has a rider. Refresh before assigning again.' });
 
     await supabaseAdmin.from('notifications').insert({
       user_id: order.user_id,
@@ -145,18 +164,25 @@ export async function assignAgent(req, res, next) {
 
 export async function listAvailableDeliveries(req, res, next) {
   try {
-    const { data, error } = await supabaseAdmin
+    if (req.profile.role !== 'admin' && req.profile.rider_approval_status !== 'approved') {
+      return res.status(403).json({ error: 'Only approved riders can browse available deliveries.' });
+    }
+    const { page = 1, limit = 20 } = req.query;
+    const from = (page - 1) * limit;
+
+    // Filter in PostgreSQL *before* pagination; fetching and filtering every
+    // pending delivery in JavaScript grows without bounds at marketplace scale.
+    const { data, error, count } = await supabaseAdmin
       .from('delivery_tracking')
-      .select('*, orders(id, delivery_address, total_amount, status, payment_status, restaurants(name, address))')
+      .select('order_id, status, updated_at, orders!inner(id, delivery_address, total_amount, rider_payout_amount, status, payment_status, restaurants(name, address))', { count: 'exact' })
       .eq('status', 'pending')
       .is('delivery_agent_id', null)
-      .order('updated_at', { ascending: true });
+      .eq('orders.payment_status', 'paid')
+      .in('orders.status', CLAIMABLE_ORDER_STATUSES)
+      .order('updated_at', { ascending: true })
+      .range(from, from + limit - 1);
     if (error) throw error;
-
-    const deliveries = (data || []).filter((d) =>
-      d.orders?.payment_status === 'paid' && CLAIMABLE_ORDER_STATUSES.includes(d.orders?.status)
-    );
-    res.json({ deliveries });
+    res.json({ deliveries: data || [], total: count || 0, page, limit });
   } catch (err) {
     next(err);
   }
@@ -224,12 +250,40 @@ export async function updateDeliveryStatus(req, res, next) {
     const allowedNext = AGENT_TRANSITIONS[tracking.status] || [];
     if (!allowedNext.includes(status)) return res.status(400).json({ error: `Cannot move delivery from "${tracking.status}" to "${status}".` });
 
-    const { data: updated, error: updateError } = await supabaseAdmin.from('delivery_tracking').update({ status }).eq('order_id', req.params.orderId).eq('status', tracking.status).select().single();
+    const currentOrder = await loadOrderWithRestaurant(req.params.orderId);
+    if (!currentOrder || currentOrder.payment_status !== 'paid') {
+      return res.status(409).json({ error: 'A delivery can only progress for a paid order.' });
+    }
+    const requiredOrderStatuses = { picked_up: ['preparing'], en_route: ['out_for_delivery'], delivered: ['out_for_delivery'] };
+    if (!requiredOrderStatuses[status]?.includes(currentOrder.status)) {
+      return res.status(409).json({ error: 'The restaurant order is not ready for this delivery step. Refresh and try again.' });
+    }
+
+    const { data: updated, error: updateError } = await supabaseAdmin.from('delivery_tracking')
+      .update({ status })
+      .eq('order_id', req.params.orderId)
+      .eq('status', tracking.status)
+      .select()
+      .maybeSingle();
     if (updateError) throw updateError;
+    if (!updated) return res.status(409).json({ error: 'Delivery state has changed. Refresh and retry.' });
 
     const orderStatusMap = { picked_up: 'out_for_delivery', en_route: 'out_for_delivery', delivered: 'delivered' };
     if (orderStatusMap[status]) {
-      const { data: order } = await supabaseAdmin.from('orders').update({ status: orderStatusMap[status] }).eq('id', req.params.orderId).select().single();
+      const { data: order, error: orderUpdateError } = await supabaseAdmin.from('orders')
+        .update({ status: orderStatusMap[status] })
+        .eq('id', req.params.orderId)
+        .eq('payment_status', 'paid')
+        .in('status', requiredOrderStatuses[status])
+        .select()
+        .maybeSingle();
+      if (orderUpdateError || !order) {
+        // Best-effort compensation until an atomic database RPC is deployed.
+        await supabaseAdmin.from('delivery_tracking').update({ status: tracking.status })
+          .eq('order_id', req.params.orderId).eq('status', status);
+        if (orderUpdateError) throw orderUpdateError;
+        return res.status(409).json({ error: 'Order changed during dispatch. Please refresh and retry.' });
+      }
       if (order) {
         await supabaseAdmin.from('notifications').insert({
           user_id: order.user_id,

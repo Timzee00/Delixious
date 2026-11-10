@@ -1,3 +1,5 @@
+import { Button } from './ui/Primitives.jsx';
+
 export function GridSkeleton() {
   return (
     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -14,18 +16,22 @@ export function GridSkeleton() {
   );
 }
 
-export function EmptyState({ message }) {
+export function EmptyState({ message, title, action }) {
   return (
-    <div className="ticket p-10 text-center">
-      <p className="text-ink-soft">{message}</p>
+    <div className="rounded-2xl border border-hairline bg-paper px-5 py-10 text-center sm:px-8">
+      {title && <h3 className="font-display text-lg font-semibold text-ink">{title}</h3>}
+      <p className="mt-2 text-sm leading-6 text-ink-soft">{message}</p>
+      {action && <div className="mt-5">{action}</div>}
     </div>
   );
 }
 
-export function ErrorState({ message }) {
+export function ErrorState({ message, onRetry }) {
   return (
-    <div className="ticket border-danger/30 p-10 text-center">
-      <p className="text-danger">{message}</p>
+    <div role="alert" className="rounded-2xl border border-danger/20 bg-paper px-5 py-10 text-center sm:px-8">
+      <p className="font-semibold text-danger">Something could not load</p>
+      <p className="mt-2 text-sm leading-6 text-ink-soft">{message}</p>
+      {onRetry && <Button className="mt-5" onClick={onRetry} variant="secondary">Try again</Button>}
     </div>
   );
 }

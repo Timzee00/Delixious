@@ -48,7 +48,7 @@ export default function Login() {
       await login(form.email, form.password);
       navigate(location.state?.from?.pathname || '/', { replace: true });
     } catch (err) {
-      setError(err.response?.data?.error || 'Could not log in. Check your details and try again.');
+      setError(err.response?.data?.error || (err.code === 'API_PROXY_MISCONFIGURED' || err.code === 'INVALID_SESSION_RESPONSE' ? err.message : 'Could not log in. Check your connection and details, then try again.'));
     } finally {
       setSubmitting(false);
     }
