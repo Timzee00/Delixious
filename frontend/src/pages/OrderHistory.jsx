@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../lib/api.js';
 import { formatNaira } from '../lib/format.js';
 import { EmptyState, ErrorState } from '../components/StateViews.jsx';
+import SceneIllustration from '../components/ui/SceneIllustration.jsx';
 
 const PAGE_SIZE = 15;
 
@@ -55,7 +56,7 @@ export default function OrderHistory() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
-      <h1 className="font-display text-2xl font-bold text-ink">Your orders</h1>
+      <div className="flex items-end justify-between gap-4"><div><p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-pepper">YOUR FOOD JOURNEY</p><h1 className="mt-1 font-display text-3xl font-bold tracking-tight text-ink">Your orders</h1><p className="mt-1 text-sm text-ink-soft">Follow every order from kitchen to doorstep.</p></div><div className="hidden sm:block"><SceneIllustration scene="delivery" className="h-24 w-32" /></div></div>
 
       <div className="mt-6">
         {loading ? (
@@ -63,7 +64,7 @@ export default function OrderHistory() {
         ) : error ? (
           <ErrorState message={error} />
         ) : orders.length === 0 ? (
-          <EmptyState message="You haven't placed any orders yet." />
+          <EmptyState illustration="orders" title="Your order history starts here" message="Your completed and current orders will appear here." />
         ) : (
           <>
             <div className="space-y-3">
