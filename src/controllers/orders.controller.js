@@ -194,15 +194,17 @@ export async function checkout(req, res, next) {
 
 export async function listMyOrders(req, res, next) {
   try {
-    const { page, limit } = req.query;
+    const { page, limit, statuses } = req.query;
     const from = (page - 1) * limit;
-    const to = from + limit - 1;
-    const { data, error, count } = await supabaseAdmin
+    let query = supabaseAdmin
       .from('orders')
       .select('*, restaurants(name, logo_url), order_items(*)', { count: 'exact' })
       .eq('user_id', req.user.id)
       .order('created_at', { ascending: false })
-      .range(from, to);
+      .order('id', { ascending: true })
+      .range(from, from + limit - 1);
+    if (statuses) query = query.in('status', statuses.split(','));
+    const { data, error, count } = await query;
     if (error) throw error;
     res.json({ orders: data, total: count, page, limit });
   } catch (err) {
@@ -312,15 +314,17 @@ export async function cancelOrder(req, res, next) {
 
 export async function listRestaurantOrders(req, res, next) {
   try {
-    const { page, limit } = req.query;
+    const { page, limit, statuses } = req.query;
     const from = (page - 1) * limit;
-    const to = from + limit - 1;
-    const { data, error, count } = await supabaseAdmin
+    let query = supabaseAdmin
       .from('orders')
       .select('*, order_items(*)', { count: 'exact' })
       .eq('restaurant_id', req.restaurant.id)
       .order('created_at', { ascending: false })
-      .range(from, to);
+      .order('id', { ascending: true })
+      .range(from, from + limit - 1);
+    if (statuses) query = query.in('status', statuses.split(','));
+    const { data, error, count } = await query;
     if (error) throw error;
     res.json({ orders: data, total: count, page, limit });
   } catch (err) {
