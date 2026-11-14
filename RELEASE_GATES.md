@@ -114,8 +114,8 @@ A read-only browser check of the preceding customer homepage build at 1440×900 
 - Added read-index candidates for restaurant menu filtering and favourites to migration 010. These indexes have not been applied.
 
 ### Verification snapshot
-- Netlify build 6af89ed8d453c16123be5305 is ready for commit fa5d52a335e97738f1d5216702f61ed17f27fedd, using Vite. It uploaded the generated page and changed assets, and processed both redirect rules without errors.
-- Netlify metadata reports no published_at; this ready deploy is not proof that the production alias was switched. The preview URL is https://6af89ed8d453c16123be5305--delixious.netlify.app/.
+- Netlify build 6af89f692860cd463f779089 is ready for commit 2c26811d076e88bea7b853027e886d0768bd5226, using Vite. It uploaded the generated page and changed assets, and processed both redirect rules without errors.
+- Netlify metadata reports no published_at; this ready deploy is not proof that the production alias was switched. The preview URL is https://6af89f692860cd463f779089--delixious.netlify.app/.
 - GitHub Actions returned no workflow runs for the latest engineering commit. The new backend/frontend Vitest tests and a production build have NOT RUN in a working test runner during this pass.
 - The last available browser inspection was for an earlier build. It found no console/network errors at 1440x900 and 390x844, but recorded mobile overlay/filter visibility issues. Follow-up commits address those layout issues; the browser service then ran out of credits, so the updated layout was NOT re-inspected.
 - No Supabase migration was applied, no real customer/order/financial rows were changed, and no live payment or payout was initiated.
