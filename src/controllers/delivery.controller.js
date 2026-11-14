@@ -327,14 +327,18 @@ export async function getDeliveryTracking(req, res, next) {
 
 export async function listMyDeliveries(req, res, next) {
   try {
-    const { data, error } = await supabaseAdmin
+    const page = Number(req.query.page || 1);
+    const limit = Number(req.query.limit || 20);
+    const from = (page - 1) * limit;
+    const { data, error, count } = await supabaseAdmin
       .from('delivery_tracking')
-      .select('*, orders(id, delivery_address, total_amount, status, rider_payout_amount, rider_payout_status, payment_status, restaurants(name, address))')
+      .select('*, orders(id, delivery_address, total_amount, status, rider_payout_amount, rider_payout_status, payment_status, restaurants(name, address))', { count: 'exact' })
       .eq('delivery_agent_id', req.user.id)
       .neq('status', 'delivered')
-      .order('updated_at', { ascending: false });
+      .order('updated_at', { ascending: false })
+      .range(from, from + limit - 1);
     if (error) throw error;
-    res.json({ deliveries: data });
+    res.json({ deliveries: data || [], total: count || 0, page, limit });
   } catch (err) {
     next(err);
   }
@@ -342,15 +346,18 @@ export async function listMyDeliveries(req, res, next) {
 
 export async function listMyDeliveryHistory(req, res, next) {
   try {
-    const { data, error } = await supabaseAdmin
+    const page = Number(req.query.page || 1);
+    const limit = Number(req.query.limit || 20);
+    const from = (page - 1) * limit;
+    const { data, error, count } = await supabaseAdmin
       .from('delivery_tracking')
-      .select('*, orders(id, delivery_address, total_amount, rider_payout_amount, rider_payout_status, payment_status, restaurants(name))')
+      .select('*, orders(id, delivery_address, total_amount, rider_payout_amount, rider_payout_status, payment_status, restaurants(name))', { count: 'exact' })
       .eq('delivery_agent_id', req.user.id)
       .eq('status', 'delivered')
       .order('updated_at', { ascending: false })
-      .limit(50);
+      .range(from, from + limit - 1);
     if (error) throw error;
-    res.json({ deliveries: data });
+    res.json({ deliveries: data || [], total: count || 0, page, limit });
   } catch (err) {
     next(err);
   }
