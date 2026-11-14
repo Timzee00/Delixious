@@ -13,4 +13,8 @@ export const updateOrderStatusSchema = z.object({
 export const listOrdersQuerySchema = z.object({
   page: z.coerce.number().int().positive().optional().default(1),
   limit: z.coerce.number().int().positive().max(50).optional().default(20),
+  statuses: z.string().trim().max(100).optional().refine(
+    value => !value || value.split(',').every(status => ['pending', 'confirmed', 'preparing', 'out_for_delivery', 'delivered', 'cancelled'].includes(status)),
+    'One or more order statuses are invalid.'
+  ),
 });
