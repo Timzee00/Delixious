@@ -179,7 +179,7 @@ export default function Home({ explore = false }) {
       return () => controller.abort();
     }
     setFavoriteError('');
-    api.get('/favorites/restaurants', { signal: controller.signal })
+    api.get('/favorites/restaurants', { params: { page: 1, limit: 12 }, signal: controller.signal })
       .then(async ({ data }) => {
         const ids = data.restaurant_ids || [];
         setFavoriteIds(new Set(ids));
