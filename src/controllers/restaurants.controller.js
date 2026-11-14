@@ -87,6 +87,9 @@ export async function deleteRestaurant(req, res, next) {
 export async function submitBankDetails(req, res, next) {
   try {
     const { bank_name, bank_code, account_number } = req.body;
+    if (req.restaurant.paystack_subaccount_code) {
+      return res.status(409).json({ error: 'A payout account is already connected. Contact support to change it safely.' });
+    }
     const paystackResponse = await createSubaccount({ businessName: req.restaurant.name, bankCode: bank_code, accountNumber: account_number, percentageCharge: 10 });
     if (!paystackResponse.status) return res.status(502).json({ error: 'Could not verify bank details with Paystack. Please check the details and try again.' });
     const { data, error } = await supabaseAdmin.from('restaurants').update({ bank_name, bank_account_number: account_number, bank_account_name: paystackResponse.data.account_name, paystack_subaccount_code: paystackResponse.data.subaccount_code }).eq('id', req.restaurant.id).select(`${MANAGEMENT_FIELDS}, paystack_subaccount_code`).single();
