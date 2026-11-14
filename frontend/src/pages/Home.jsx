@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import api from '../lib/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -66,6 +66,10 @@ export default function Home({ explore = false }) {
   const [foodRetry, setFoodRetry] = useState(0);
   const [restaurantRetry, setRestaurantRetry] = useState(0);
   const [foods, setFoods] = useState([]);
+  const [foodPage, setFoodPage] = useState(1);
+  const [foodTotal, setFoodTotal] = useState(0);
+  const [foodLoadingMore, setFoodLoadingMore] = useState(false);
+  const moreFoodsController = useRef(null);
   const [restaurants, setRestaurants] = useState([]);
   const [favoriteFoods, setFavoriteFoods] = useState([]);
   const [favoriteIds, setFavoriteIds] = useState(new Set());
@@ -91,8 +95,12 @@ export default function Home({ explore = false }) {
 
   useEffect(() => {
     const controller = new AbortController();
+    moreFoodsController.current?.abort();
+    setFoodLoadingMore(false);
     setFoodLoading(true);
     setFoodError('');
+    setFoodPage(1);
+    setFoodTotal(0);
     api.get('/menu-items/feed', {
       params: {
         page: 1, limit: 12,
@@ -102,15 +110,49 @@ export default function Home({ explore = false }) {
         ...(maxPrice ? { max_price: '3000' } : {}),
       },
       signal: controller.signal,
-    }).then(({ data }) => setFoods(data.menu_items || []))
-      .catch(err => {
-        if (err.code !== 'ERR_CANCELED') setFoodError(err.response?.data?.error || 'Could not load dishes. Check your connection and retry.');
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setFoodLoading(false);
-      });
+    }).then(({ data }) => {
+      setFoods(data.menu_items || []);
+      setFoodTotal(Number(data.total || 0));
+      setFoodPage(1);
+    }).catch(err => {
+      if (err.code !== 'ERR_CANCELED') setFoodError(err.response?.data?.error || 'Could not load dishes. Check your connection and retry.');
+    }).finally(() => {
+      if (!controller.signal.aborted) setFoodLoading(false);
+    });
     return () => controller.abort();
   }, [debouncedQuery, cuisine, openOnly, maxPrice, foodRetry]);
+
+  async function loadMoreFoods() {
+    if (foodLoadingMore || foodLoading || foods.length >= foodTotal) return;
+    const controller = new AbortController();
+    moreFoodsController.current = controller;
+    setFoodLoadingMore(true);
+    setFoodError('');
+    try {
+      const { data } = await api.get('/menu-items/feed', {
+        params: {
+          page: foodPage + 1, limit: 12,
+          ...(debouncedQuery ? { q: debouncedQuery } : {}),
+          ...(cuisine !== 'All' ? { cuisine } : {}),
+          ...(openOnly ? { open_only: 'true' } : {}),
+          ...(maxPrice ? { max_price: '3000' } : {}),
+        },
+        signal: controller.signal,
+      });
+      if (!controller.signal.aborted) {
+        setFoods(current => [...current, ...(data.menu_items || [])]);
+        setFoodPage(foodPage + 1);
+        setFoodTotal(Number(data.total || foodTotal));
+      }
+    } catch (err) {
+      if (err.code !== 'ERR_CANCELED') setFoodError(err.response?.data?.error || 'Could not load more dishes. Please retry.');
+    } finally {
+      if (moreFoodsController.current === controller) {
+        moreFoodsController.current = null;
+        setFoodLoadingMore(false);
+      }
+    }
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -316,9 +358,17 @@ export default function Home({ explore = false }) {
         {foodLoading ? <GridSkeleton/> : foodError ? (
           <ErrorState message={foodError} onRetry={() => setFoodRetry(value => value + 1)} />
         ) : foods.length ? (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
-            {foods.map(item => <FoodCard key={item.id} item={item} onAdd={addToCart} adding={addBusy === item.id}/>)}
-          </div>
+          <>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
+              {foods.map(item => <FoodCard key={item.id} item={item} onAdd={addToCart} adding={addBusy === item.id}/>)}
+            </div>
+            {foods.length < foodTotal && <div className="mt-7 flex flex-col items-center gap-2">
+              <p className="text-xs text-ink-soft">Showing {foods.length.toLocaleString()} of {foodTotal.toLocaleString()} dishes</p>
+              <button type="button" onClick={loadMoreFoods} disabled={foodLoadingMore} className="min-h-11 rounded-xl border border-pepper px-6 text-sm font-semibold text-pepper hover:bg-pepper/5 disabled:opacity-50">
+                {foodLoadingMore ? 'Loading dishes…' : 'Load more dishes'}
+              </button>
+            </div>}
+          </>
         ) : <div className="rounded-2xl border border-hairline bg-paper p-6">
           <EmptyState message="No dishes match those filters right now." />
           <button type="button" onClick={resetFilters} className="mt-3 text-sm font-semibold text-pepper underline">Clear filters</button>
