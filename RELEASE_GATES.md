@@ -92,6 +92,13 @@ These are **goals**, not measured achievements:
 
 **Still not verified:** full backend/frontend Vitest suites, Vite production build, rendered role-specific screens, browser/device E2E, query-plan performance on production-sized data, and staging load tests. The latest Netlify production-context build for commit `2b1a4997f11b3aea611c4de0eddd0215cea44f57` reached **ready** and uploaded 33 changed files; this confirms the Vite build and Netlify packaging for that commit, not full tests or a production-alias switch. Subsequent backend ordering commits still require a fresh backend test run. These commits do not establish a measured capacity ceiling or production readiness.
 
+
+### Latest visual QA follow-up (November 14, 2026)
+
+A read-only browser check of the preceding customer homepage build at 1440×900 and 390×844 found no console errors, failed requests or HTTP 4xx/5xx responses. It identified mobile content overlap near the fixed bottom navigation, a sticky-header overlap near the partner CTA, a horizontally clipped filter row, and excess whitespace when a section has only one card. The follow-up commits compact the mobile header into one row, increase bottom safe-area spacing, and wrap filter chips rather than clipping them.
+
+**Retest status:** NOT RUN after those follow-up changes because the connected browser inspection service returned an insufficient-credits error. Do not mark the visual defects closed until the updated deploy is inspected again. The Netlify build artifact is ready, but its deployment metadata has no `published_at`; the production alias switch is not confirmed. The Render backend still uses the legacy split repository, so the new backend pagination contracts are not live until that service is deliberately migrated and tested.
+
 ## Browser compatibility and same-origin auth gate (November 1, 2026)
 
 The previous Chrome-only experience may have been caused by the old frontend
