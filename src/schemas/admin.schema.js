@@ -11,6 +11,7 @@ export const suspendUserSchema = z.object({
 export const listQuerySchema = z.object({
   page: z.coerce.number().int().positive().optional().default(1),
   limit: z.coerce.number().int().positive().max(50).optional().default(20),
+  status: z.enum(['pending', 'confirmed', 'preparing', 'out_for_delivery', 'delivered', 'cancelled']).optional(),
 });
 
 export const listRestaurantsAdminQuerySchema = listQuerySchema.extend({
