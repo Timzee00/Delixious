@@ -1,6 +1,6 @@
 # Delixious — UX, reliability and scalability release gates
 
-Status: **PR #1 merged to `main`; current dashboard and pagination improvements are committed to `main`; not deployed or production-verified**.
+Status: **PR #1 merged to `main`; current SVG, workspace and large-record improvements are committed to `main`. Frontend build verified on Netlify preview; backend tests and production rollout remain unverified.**
 The production Render service still tracks the legacy `delixious-backend` repository.
 
 ## Scope of this pass
@@ -98,6 +98,38 @@ These are **goals**, not measured achievements:
 A read-only browser check of the preceding customer homepage build at 1440×900 and 390×844 found no console errors, failed requests or HTTP 4xx/5xx responses. It identified mobile content overlap near the fixed bottom navigation, a sticky-header overlap near the partner CTA, a horizontally clipped filter row, and excess whitespace when a section has only one card. The follow-up commits compact the mobile header into one row, increase bottom safe-area spacing, and wrap filter chips rather than clipping them.
 
 **Retest status:** NOT RUN after those follow-up changes because the connected browser inspection service returned an insufficient-credits error. Do not mark the visual defects closed until the updated deploy is inspected again. The Netlify build artifact is ready, but its deployment metadata has no `published_at`; the production alias switch is not confirmed. The Render backend still uses the legacy split repository, so the new backend pagination contracts are not live until that service is deliberately migrated and tested.
+
+## Visual system, workspace completion and data scale (November 14, 2026)
+
+### Delivered in this pass
+- Added an original inline SVG scene library for discovery, cart, orders, notifications, favorites, kitchen, delivery, payment, success and unavailable states. It follows the Delixious pepper/ink/sand/jade palette and uses accessible SVG labels.
+- Extended the shared SVG icon family for food categories, navigation, restaurant operations, admin, riders, finance, filters and state indicators. Food category circles now use distinct cooking-pot, sandwich, soup and flame symbols when menu photography is unavailable.
+- Added SVG-first cues to cart/favorites/order empty states, rider empty states, restaurant menu and order workspaces, admin overview and order tracking stages. Essential actions retain concise visible labels; icons do not replace ambiguous action text.
+- Reworked restaurant, rider and admin workspaces with role-specific navigation and task-focused headings.
+- Added bounded page reads and database-side filters to restaurant menu management, public restaurant menus, restaurant owner lists, restaurant order queues, customer order history, rider active/history lists, admin partners/users/orders, notifications and saved restaurants.
+- Customer favourites support server-side name search and page-scoped favourite indicators. Home and restaurant cards request favourite status only for visible restaurant IDs; this avoids treating a small first-page subset as the complete saved list.
+- Admin broadcasts use bounded recipient pages and small insert batches. The endpoint explicitly reports partial completion; the UI shows an audience preview and confirmation step.
+- Added safe payout response projections: browser session data omits rider bank account numbers and Paystack recipient identifiers, and payout screens display connection status plus the last four digits only. Duplicate payout-recipient/subaccount creation is blocked.
+- Added focused regression tests for rider pagination, favourite pagination and broadcast batching/partial failure.
+- Added read-index candidates for restaurant menu filtering and favourites to migration 010. These indexes have not been applied.
+
+### Verification snapshot
+- Netlify build 6af89ed8d453c16123be5305 is ready for commit fa5d52a335e97738f1d5216702f61ed17f27fedd, using Vite. It uploaded the generated page and changed assets, and processed both redirect rules without errors.
+- Netlify metadata reports no published_at; this ready deploy is not proof that the production alias was switched. The preview URL is https://6af89ed8d453c16123be5305--delixious.netlify.app/.
+- GitHub Actions returned no workflow runs for the latest engineering commit. The new backend/frontend Vitest tests and a production build have NOT RUN in a working test runner during this pass.
+- The last available browser inspection was for an earlier build. It found no console/network errors at 1440x900 and 390x844, but recorded mobile overlay/filter visibility issues. Follow-up commits address those layout issues; the browser service then ran out of credits, so the updated layout was NOT re-inspected.
+- No Supabase migration was applied, no real customer/order/financial rows were changed, and no live payment or payout was initiated.
+
+### Remaining pre-launch gates
+1. Run `npm ci --include=dev && npm test` at repository root.
+2. Run `npm ci --include=dev --prefix frontend && npm run test:frontend --prefix frontend && npm run build --prefix frontend`.
+3. Reconcile restaurant payout percentage configuration with marketplace allocation settings. The current Paystack subaccount creation flow has a hard-coded 10% setting; do not enable live settlements until this agrees with checkout/ledger rules.
+4. Review schema/index overlap; apply migration 010 only to staging first and compare query plans with representative thousand-record tables.
+5. Test owner isolation, admin role authorization, profile secret filtering, duplicate payout protection, paid-only restaurant order queues and partial broadcast behavior against a staging database.
+6. Run customer, restaurant, rider and admin end-to-end tests in current Chrome, Firefox, Safari and Samsung Internet on mobile and desktop.
+7. Migrate the existing Render service from its legacy split backend repository to the monorepo only after staging proves same-origin auth, API routing, webhook, delivery and payment flows. Preserve existing service environment variables and production data.
+8. Confirm Netlify production alias publication separately from a ready preview deploy.
+9. Measure p95/p99, DB plans, connection pool and representative concurrent load. Offset pagination is adequate for the present thousands-of-records target with candidate indexes; larger growth should move high-volume timelines to keyset/cursor pagination and read-model aggregates.
 
 ## Browser compatibility and same-origin auth gate (November 1, 2026)
 
