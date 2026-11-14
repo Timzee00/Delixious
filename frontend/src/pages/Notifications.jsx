@@ -3,6 +3,7 @@ import { FixedSizeList as List } from 'react-window';
 import api from '../lib/api.js';
 import { useNotifications } from '../context/NotificationsContext.jsx';
 import { EmptyState, ErrorState } from '../components/StateViews.jsx';
+import Icon from '../components/ui/Icon.jsx';
 
 const PAGE_SIZE = 20;
 // Above this many loaded notifications, switch to a virtualized (react-window)
@@ -26,11 +27,12 @@ export default function Notifications() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     load(1, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [retry]);
 
   async function load(pageToLoad, append) {
     if (append) setLoadingMore(true);
@@ -54,8 +56,8 @@ export default function Notifications() {
       await api.patch(`/notifications/${id}/read`);
       setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
       refreshUnreadCount();
-    } catch {
-      // non-critical - silently ignore
+    } catch (err) {
+      setError(err.response?.data?.error || 'Could not mark this notification as read.');
     }
   }
 
@@ -64,8 +66,8 @@ export default function Notifications() {
       await api.patch('/notifications/read-all');
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
       refreshUnreadCount();
-    } catch {
-      // non-critical - silently ignore
+    } catch (err) {
+      setError(err.response?.data?.error || 'Could not mark notifications as read.');
     }
   }
 
@@ -75,8 +77,8 @@ export default function Notifications() {
       setNotifications((prev) => prev.filter((n) => n.id !== id));
       setTotal((t) => Math.max(0, t - 1));
       refreshUnreadCount();
-    } catch {
-      // non-critical - silently ignore
+    } catch (err) {
+      setError(err.response?.data?.error || 'Could not delete this notification.');
     }
   }
 
@@ -96,12 +98,13 @@ export default function Notifications() {
       </div>
 
       <div className="mt-6">
+        {error && <div role="alert" className="mb-4 rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">{error}<button type="button" onClick={() => setRetry(value => value + 1)} className="ml-2 font-semibold underline">Retry</button></div>}
         {loading ? (
           <p className="text-center font-mono text-sm text-ink-soft">Loading...</p>
         ) : error ? (
-          <ErrorState message={error} />
+          <ErrorState message={error} onRetry={() => setRetry(value => value + 1)} />
         ) : notifications.length === 0 ? (
-          <EmptyState message="No notifications yet." />
+          <EmptyState illustration="notifications" title="You are all caught up" message="Order progress and account updates will appear here." />
         ) : notifications.length > VIRTUALIZE_THRESHOLD ? (
           <List
             height={Math.min(640, notifications.length * ROW_HEIGHT)}
@@ -123,7 +126,7 @@ export default function Notifications() {
           </div>
         )}
 
-        {hasMore && notifications.length <= VIRTUALIZE_THRESHOLD && (
+        {hasMore && (
           <button
             onClick={() => load(page + 1, true)}
             disabled={loadingMore}
@@ -141,6 +144,13 @@ function NotificationRow({ notification: n, onRead, onRemove, compact = false })
   return (
     <div
       onClick={() => !n.is_read && onRead(n.id)}
+      onKeyDown={event => {
+        if (event.target !== event.currentTarget || n.is_read) return;
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onRead(n.id); }
+      }}
+      role={!n.is_read ? 'button' : undefined}
+      tabIndex={!n.is_read ? 0 : undefined}
+      aria-label={!n.is_read ? `Mark ${n.title} as read` : undefined}
       className={`ticket flex items-start gap-3 p-4 ${!n.is_read ? 'cursor-pointer border-pepper/30' : ''} ${compact ? 'mb-3' : ''}`}
     >
       <div className="mt-1 w-2 shrink-0">{!n.is_read && <span className="block h-2 w-2 rounded-full bg-pepper" />}</div>
