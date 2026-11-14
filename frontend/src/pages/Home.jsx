@@ -13,10 +13,10 @@ import { formatNaira } from '../lib/format.js';
 
 const CUISINES = ['All', 'Nigerian', 'Continental', 'Chinese', 'Fast Food', 'Grills', 'Seafood', 'Pastries'];
 const CATEGORIES = [
-  { name: 'Rice', search: 'rice', pattern: /rice|jollof/i },
-  { name: 'Shawarma', search: 'shawarma', pattern: /shawarma|wrap/i },
-  { name: 'Swallow', search: 'swallow', pattern: /amala|eba|fufu|pounded|swallow|semo/i },
-  { name: 'Grills', search: 'grill', pattern: /grill|asun|suya|barbecue/i },
+  { name: 'Rice', search: 'rice', icon: 'cooking-pot', pattern: /rice|jollof/i },
+  { name: 'Shawarma', search: 'shawarma', icon: 'sandwich', pattern: /shawarma|wrap/i },
+  { name: 'Swallow', search: 'swallow', icon: 'soup', pattern: /amala|eba|fufu|pounded|swallow|semo/i },
+  { name: 'Grills', search: 'grill', icon: 'flame', pattern: /grill|asun|suya|barbecue/i },
 ];
 
 const ACTIVE_STATUSES = new Set(['pending', 'confirmed', 'preparing', 'out_for_delivery']);
@@ -44,7 +44,7 @@ function CategoryCircle({ category, food, active, onChoose }) {
           <img src={food.image_url} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
         ) : (
           <span className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#FFE9CF] to-[#F5C4A3] text-pepper">
-            <Icon name="bag" size={30} />
+            <Icon name={category.icon} size={32} />
           </span>
         )}
       </span>
