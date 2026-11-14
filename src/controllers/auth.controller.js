@@ -94,6 +94,7 @@ export async function submitRiderBankDetails(req, res, next) {
       .single();
 
     if (error) return res.status(400).json({ error: error.message });
+    if (!data) return res.status(500).json({ error: 'The payout account was verified but could not be saved.' });
     res.json({ message: 'Payout account connected.', payout_account_connected: true, bank_account_last4: account_number.slice(-4) });
   } catch (err) {
     if (err.response?.data?.message) {
@@ -189,7 +190,7 @@ export async function refresh(req, res, next) {
     res.json({
       message: 'Session refreshed.',
       user: { id: data.user.id, email: data.user.email },
-      profile,
+      profile: serializeProfile(profile),
       csrfToken,
     });
   } catch (err) {
