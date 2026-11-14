@@ -1,67 +1,80 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import api from '../../lib/api.js';
 import { formatNaira } from '../../lib/format.js';
 import Modal from '../Modal.jsx';
+import Icon from '../ui/Icon.jsx';
+import SceneIllustration from '../ui/SceneIllustration.jsx';
+import PaginationControls from '../ui/PaginationControls.jsx';
+import { Button } from '../ui/Primitives.jsx';
 
 const PAGE_SIZE = 20;
+const FILTERS = [
+  { id: 'active', label: 'Active orders', statuses: 'pending,confirmed,preparing,out_for_delivery' },
+  { id: 'pending', label: 'Awaiting review', statuses: 'pending' },
+  { id: 'preparing', label: 'In kitchen', statuses: 'confirmed,preparing' },
+  { id: 'delivered', label: 'Completed', statuses: 'delivered' },
+  { id: 'cancelled', label: 'Cancelled', statuses: 'cancelled' },
+  { id: 'all', label: 'All orders', statuses: '' },
+];
 
-// Restaurants prepare orders; pickup and delivery are rider-controlled.
 const NEXT_STATUS = { confirmed: 'preparing' };
 const NEXT_LABEL = { confirmed: 'Start preparing' };
-
 const STATUS_STYLES = {
-  pending: 'bg-gold text-white',
-  confirmed: 'bg-gold text-white',
-  preparing: 'bg-gold text-white',
-  out_for_delivery: 'bg-pepper text-white',
-  delivered: 'bg-jade text-white',
-  cancelled: 'bg-ink-soft text-white',
+  pending: 'bg-gold/15 text-[#8A5A00]',
+  confirmed: 'bg-[#FFF2D8] text-[#8A5A00]',
+  preparing: 'bg-[#FFF2D8] text-[#8A5A00]',
+  out_for_delivery: 'bg-pepper/10 text-pepper',
+  delivered: 'bg-jade-soft text-jade',
+  cancelled: 'bg-sand text-ink-soft',
 };
 
 export default function OrdersQueueSection({ restaurant }) {
-  const [orders, setOrders] = useState(null);
+  const [orders, setOrders] = useState([]);
+  const [filter, setFilter] = useState('active');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState(null);
   const [assigningOrder, setAssigningOrder] = useState(null);
 
-  useEffect(() => {
-    setOrders(null);
-    setPage(1);
-    load(1, false);
-    // Light polling for new incoming orders - no realtime channel for
-    // orders yet, this keeps the queue reasonably fresh in the meantime.
-    const interval = setInterval(() => load(1, false), 20000);
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [restaurant.id]);
-
-  async function load(pageToLoad, append) {
+  const load = useCallback(async (pageToLoad = 1, append = false) => {
     if (append) setLoadingMore(true);
+    else setLoading(true);
+    setError('');
+    const selected = FILTERS.find(item => item.id === filter) || FILTERS[0];
     try {
       const { data } = await api.get(`/restaurants/${restaurant.id}/orders`, {
-        params: { page: pageToLoad, limit: PAGE_SIZE },
+        params: { page: pageToLoad, limit: PAGE_SIZE, ...(selected.statuses ? { statuses: selected.statuses } : {}) },
       });
-      setOrders((prev) => (append && prev ? [...prev, ...data.orders] : data.orders));
-      setTotal(data.total);
+      setOrders(current => append ? [...current, ...(data.orders || [])] : (data.orders || []));
+      setTotal(data.total || 0);
       setPage(pageToLoad);
     } catch (err) {
       setError(err.response?.data?.error || 'Could not load orders.');
     } finally {
+      setLoading(false);
       setLoadingMore(false);
     }
-  }
+  }, [restaurant.id, filter]);
+
+  useEffect(() => {
+    setOrders([]);
+    setPage(1);
+    load(1);
+    const interval = window.setInterval(() => load(1), 25000);
+    return () => window.clearInterval(interval);
+  }, [load]);
 
   async function advanceStatus(order) {
     const nextStatus = NEXT_STATUS[order.status];
-    if (!nextStatus) return;
+    if (!nextStatus || busyId) return;
     setBusyId(order.id);
     setError('');
     try {
       const { data } = await api.patch(`/orders/${order.id}/status`, { status: nextStatus });
-      setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, ...data.order } : o)));
+      setOrders(current => current.map(item => item.id === order.id ? { ...item, ...data.order } : item));
     } catch (err) {
       setError(err.response?.data?.error || 'Could not update order status.');
     } finally {
@@ -69,109 +82,59 @@ export default function OrdersQueueSection({ restaurant }) {
     }
   }
 
-  if (orders === null) {
-    return <p className="text-center font-mono text-sm text-ink-soft">Loading orders...</p>;
-  }
-
-  const activeOrders = orders.filter((o) => !['delivered', 'cancelled'].includes(o.status));
-  const pastOrders = orders.filter((o) => ['delivered', 'cancelled'].includes(o.status));
-  const hasMore = orders.length < total;
+  const activeOrders = orders.filter(order => !['delivered', 'cancelled'].includes(order.status));
+  const pastOrders = orders.filter(order => ['delivered', 'cancelled'].includes(order.status));
+  const selectedFilter = FILTERS.find(item => item.id === filter) || FILTERS[0];
 
   return (
-    <div>
-      <h2 className="font-display text-lg font-bold text-ink">Incoming orders</h2>
-      {error && (
-        <p role="alert" aria-live="polite" className="mt-4 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
-          {error}
-        </p>
-      )}
+    <section className="space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div><p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-pepper">SERVICE QUEUE</p><h2 className="mt-1 font-display text-2xl font-bold text-ink">Orders</h2><p className="mt-1 text-sm text-ink-soft">Review paid orders and move each order into preparation.</p></div>
+        <Button variant="secondary" onClick={() => load(1)}><Icon name="refresh" size={16}/> Refresh queue</Button>
+      </div>
 
-      {activeOrders.length === 0 ? (
-        <p className="mt-6 text-center text-ink-soft">No active orders right now.</p>
+      <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Filter restaurant orders">
+        {FILTERS.map(item => <button key={item.id} type="button" role="tab" aria-selected={filter === item.id} onClick={() => { setFilter(item.id); setPage(1); }}
+          className={`min-h-10 shrink-0 rounded-xl px-3 text-xs font-semibold transition-colors ${filter === item.id ? 'bg-pepper text-white' : 'border border-hairline bg-paper text-ink-soft hover:text-ink'}`}>
+          {item.label}
+        </button>)}
+      </div>
+
+      {error && <p role="alert" aria-live="polite" className="rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">{error}</p>}
+
+      {loading ? <div className="space-y-3" role="status" aria-label="Loading restaurant orders">{[1,2,3].map(value => <div key={value} className="h-28 animate-pulse rounded-2xl bg-hairline"/>)}</div> : !orders.length ? (
+        <div className="rounded-2xl border border-hairline bg-paper p-6 sm:p-8"><SceneIllustration scene="orders" className="mx-auto h-28 w-40"/><h3 className="mt-2 text-center font-display text-lg font-bold text-ink">{filter === 'active' ? 'Your queue is clear' : 'No orders in this view'}</h3><p className="mt-1 text-center text-sm text-ink-soft">{filter === 'active' ? 'New paid orders will appear here when customers check out.' : 'Try another order filter to see more records.'}</p></div>
       ) : (
-        <div className="mt-4 space-y-3">
-          {activeOrders.map((order) => (
-            <div key={order.id} className="ticket p-4">
-              <div className="flex items-center justify-between gap-2">
-                <p className="font-mono text-xs text-ink-soft">#{order.id.slice(0, 8)}</p>
-                <span
-                  className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide ${STATUS_STYLES[order.status]}`}
-                >
-                  {order.status.replace(/_/g, ' ')}
-                </span>
-              </div>
-              <div className="mt-2 space-y-1">
-                {order.order_items.map((item) => (
-                  <div key={item.id} className="flex justify-between text-sm">
-                    <span className="text-ink">
-                      {item.quantity} × {item.name_snapshot}
-                    </span>
-                    <span className="font-mono text-ink-soft">{formatNaira(item.subtotal)}</span>
-                  </div>
-                ))}
-              </div>
-              <p className="mt-2 text-xs text-ink-soft">Deliver to: {order.delivery_address}</p>
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                <span className="font-mono text-sm font-semibold text-ink">{formatNaira(order.total_amount)}</span>
-                <div className="flex flex-wrap gap-2">
-                  {['confirmed', 'preparing'].includes(order.status) && (
-                    <button
-                      onClick={() => setAssigningOrder(order)}
-                      className="rounded-lg border border-hairline px-3 py-1.5 text-xs font-medium text-ink-soft transition-colors hover:border-pepper hover:text-pepper"
-                    >
-                      Assign rider
-                    </button>
-                  )}
-                  {order.status === 'preparing' && (
-                    <span className="text-xs text-ink-soft">Await rider pickup to dispatch</span>
-                  )}
-                  {NEXT_STATUS[order.status] && (
-                    <button
-                      onClick={() => advanceStatus(order)}
-                      disabled={busyId === order.id}
-                      className="rounded-lg bg-pepper px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-pepper-dark disabled:opacity-60"
-                    >
-                      {busyId === order.id ? 'Updating...' : NEXT_LABEL[order.status]}
-                    </button>
-                  )}
+        <div className="space-y-3">
+          {orders.map(order => {
+            const canPrepare = NEXT_STATUS[order.status] === 'preparing';
+            const isActive = !['delivered', 'cancelled'].includes(order.status);
+            return (
+              <article key={order.id} className="rounded-2xl border border-hairline bg-paper p-4 sm:p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0"><p className="font-mono text-[11px] text-ink-soft">ORDER #{order.id.slice(0,8)}</p><p className="mt-1 font-semibold text-ink">{new Date(order.created_at).toLocaleString()}</p></div>
+                  <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${STATUS_STYLES[order.status] || 'bg-sand text-ink-soft'}`}>{order.status.replace(/_/g,' ')}</span>
                 </div>
-              </div>
-            </div>
-          ))}
+                <div className="mt-4 divide-y divide-hairline">
+                  {(order.order_items || []).map(item => <div key={item.id} className="flex items-center justify-between gap-3 py-2 text-sm first:pt-0 last:pb-0"><span className="min-w-0 truncate text-ink">{item.quantity} × {item.name_snapshot}</span><span className="shrink-0 font-mono text-xs text-ink-soft">{formatNaira(item.subtotal)}</span></div>)}
+                </div>
+                <div className="mt-4 flex flex-wrap items-end justify-between gap-3 border-t border-hairline pt-3">
+                  <div className="min-w-0"><p className="text-xs text-ink-soft">Delivery address</p><p className="mt-1 max-w-xl text-sm text-ink">{order.delivery_address || 'Not supplied'}</p><p className="mt-2 font-mono text-sm font-bold text-ink">{formatNaira(order.total_amount)}</p></div>
+                  <div className="flex flex-wrap gap-2">
+                    {['confirmed','preparing'].includes(order.status) && <button type="button" onClick={() => setAssigningOrder(order)} className="min-h-10 rounded-xl border border-hairline px-3 text-xs font-semibold text-ink hover:border-pepper hover:text-pepper"><Icon name="bike" size={15} className="mr-1 inline"/>Assign rider</button>}
+                    {canPrepare && <Button busy={busyId === order.id} onClick={() => advanceStatus(order)}>Start preparing</Button>}
+                    {order.status === 'preparing' && <span className="inline-flex min-h-10 items-center rounded-xl bg-sand px-3 text-xs font-semibold text-ink-soft">Awaiting rider pickup</span>}
+                  </div>
+                </div>
+              </article>
+            );
+          })}
         </div>
       )}
 
-      {pastOrders.length > 0 && (
-        <div className="mt-8">
-          <h3 className="font-display text-sm font-bold uppercase tracking-wide text-ink-soft">Past orders</h3>
-          <div className="mt-3 space-y-2">
-            {pastOrders.map((order) => (
-              <div key={order.id} className="ticket flex items-center justify-between p-3 text-sm">
-                <span className="font-mono text-xs text-ink-soft">#{order.id.slice(0, 8)}</span>
-                <span
-                  className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase ${STATUS_STYLES[order.status]}`}
-                >
-                  {order.status.replace(/_/g, ' ')}
-                </span>
-                <span className="font-mono text-ink-soft">{formatNaira(order.total_amount)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {hasMore && (
-        <button
-          onClick={() => load(page + 1, true)}
-          disabled={loadingMore}
-          className="mt-6 w-full rounded-lg border border-hairline py-2.5 text-sm font-medium text-ink-soft transition-colors hover:border-pepper hover:text-pepper disabled:opacity-60"
-        >
-          {loadingMore ? 'Loading...' : 'Load more orders'}
-        </button>
-      )}
-
-      {assigningOrder && <AssignAgentModal order={assigningOrder} onDone={() => setAssigningOrder(null)} />}
-    </div>
+      {!loading && <PaginationControls page={page} total={total} pageSize={PAGE_SIZE} onPageChange={nextPage => load(nextPage)}/>}
+      {assigningOrder && <AssignAgentModal order={assigningOrder} onDone={() => { setAssigningOrder(null); load(1); }}/>}
+    </section>
   );
 }
 
