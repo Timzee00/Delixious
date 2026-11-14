@@ -9,9 +9,9 @@ import { Button } from '../ui/Primitives.jsx';
 
 const PAGE_SIZE = 20;
 const FILTERS = [
-  { id: 'active', label: 'Active orders', statuses: 'pending,confirmed,preparing,out_for_delivery' },
+  { id: 'active', label: 'Active orders', statuses: 'pending,confirmed,preparing,out_for_delivery', paidOnly: true },
   { id: 'pending', label: 'Awaiting review', statuses: 'pending' },
-  { id: 'preparing', label: 'In kitchen', statuses: 'confirmed,preparing' },
+  { id: 'preparing', label: 'In kitchen', statuses: 'confirmed,preparing', paidOnly: true },
   { id: 'delivered', label: 'Completed', statuses: 'delivered' },
   { id: 'cancelled', label: 'Cancelled', statuses: 'cancelled' },
   { id: 'all', label: 'All orders', statuses: '' },
@@ -46,7 +46,7 @@ export default function OrdersQueueSection({ restaurant }) {
     const selected = FILTERS.find(item => item.id === filter) || FILTERS[0];
     try {
       const { data } = await api.get(`/restaurants/${restaurant.id}/orders`, {
-        params: { page: pageToLoad, limit: PAGE_SIZE, ...(selected.statuses ? { statuses: selected.statuses } : {}) },
+        params: { page: pageToLoad, limit: PAGE_SIZE, ...(selected.statuses ? { statuses: selected.statuses } : {}), ...(selected.paidOnly ? { paid_only: 'true' } : {}) },
       });
       setOrders(current => append ? [...current, ...(data.orders || [])] : (data.orders || []));
       setTotal(data.total || 0);
@@ -82,10 +82,7 @@ export default function OrdersQueueSection({ restaurant }) {
     }
   }
 
-  const activeOrders = orders.filter(order => !['delivered', 'cancelled'].includes(order.status));
-  const pastOrders = orders.filter(order => ['delivered', 'cancelled'].includes(order.status));
-  const selectedFilter = FILTERS.find(item => item.id === filter) || FILTERS[0];
-
+  
   return (
     <section className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
