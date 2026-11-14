@@ -1,7 +1,7 @@
 import { formatNaira } from '../lib/format.js';
 import Img from './Img.jsx';
 
-export default function MenuItemRow({ item, onAdd, status }) {
+export default function MenuItemRow({ item, onAdd, status, disabled = false }) {
   const isAdding = status === 'adding';
   const justAdded = status === 'added';
 
@@ -19,16 +19,16 @@ export default function MenuItemRow({ item, onAdd, status }) {
       </div>
       <button
         onClick={onAdd}
-        disabled={!item.is_available || isAdding}
+        disabled={!item.is_available || disabled || isAdding}
         className={`shrink-0 rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
-          !item.is_available
+          !item.is_available || disabled
             ? 'cursor-not-allowed bg-hairline text-ink-soft'
             : justAdded
               ? 'bg-jade text-white'
               : 'bg-pepper text-white hover:bg-pepper-dark'
         }`}
       >
-        {!item.is_available ? 'Sold out' : isAdding ? 'Adding...' : justAdded ? 'Added ✓' : 'Add'}
+        {!item.is_available ? 'Sold out' : disabled ? 'Kitchen closed' : isAdding ? 'Adding...' : justAdded ? 'Added' : 'Add dish'}
       </button>
     </div>
   );
