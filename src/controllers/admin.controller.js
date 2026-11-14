@@ -132,7 +132,7 @@ export async function listOrdersAdmin(req, res, next) {
     const from = (page - 1) * limit;
     let query = supabaseAdmin
       .from('orders')
-      .select('id, user_id, restaurant_id, status, total_amount, platform_commission, created_at', { count: 'exact' })
+      .select('id, user_id, restaurant_id, status, total_amount, platform_commission, created_at, restaurants(name)', { count: 'exact' })
       .order('created_at', { ascending: false })
       .order('id', { ascending: true })
       .range(from, from + limit - 1);
