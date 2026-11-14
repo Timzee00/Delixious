@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { adminApi } from '../../lib/adminApi.js';
 import ConfirmModal from '../ConfirmModal.jsx';
 import Icon from '../ui/Icon.jsx';
@@ -18,12 +18,15 @@ export default function BroadcastSection() {
   const [partialCount, setPartialCount] = useState(null);
   const [sending, setSending] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const sendLock = useRef(false);
 
   function update(field, value) {
     setForm(current => ({ ...current, [field]: value }));
   }
 
   async function send() {
+    if (sendLock.current) return;
+    sendLock.current = true;
     setError('');
     setStatus('');
     setPartialCount(null);
@@ -47,6 +50,7 @@ export default function BroadcastSection() {
         setError(data?.error || 'Could not send this broadcast.');
       }
     } finally {
+      sendLock.current = false;
       setSending(false);
     }
   }
