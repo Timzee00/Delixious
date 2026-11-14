@@ -14,7 +14,7 @@ async function ensureApprovedRestaurant(restaurantId) {
 
 export async function listFavoriteRestaurants(req, res, next) {
   try {
-    const { page = 1, limit = 12, restaurant_ids } = req.query;
+    const { page = 1, limit = 12, restaurant_ids, q } = req.query;
     const from = (page - 1) * limit;
     let query = supabaseAdmin
       .from('restaurant_favorites')
@@ -29,6 +29,7 @@ export async function listFavoriteRestaurants(req, res, next) {
       const ids = restaurant_ids.split(',').map(id => id.trim());
       query = query.in('restaurant_id', ids);
     }
+    if (q) query = query.ilike('restaurants.name', `%${q}%`);
 
     const { data, error, count } = await query;
     if (error) throw error;
