@@ -68,7 +68,7 @@ export default function Navbar() {
             ))}
           </nav>
 
-          {showCustomerControls && <div className="ml-auto hidden min-w-0 sm:block"><DeliveryLocation/></div>}
+          {showCustomerControls && <div className="ml-auto min-w-0 max-w-[128px] sm:max-w-none"><DeliveryLocation/></div>}
 
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             {isAuthenticated && <Link to="/notifications"
@@ -88,9 +88,6 @@ export default function Navbar() {
             </Link>}
           </div>
         </div>
-        {showCustomerControls && <div className="border-t border-hairline/70 px-4 sm:hidden">
-          <div className="mx-auto max-w-7xl"><DeliveryLocation/></div>
-        </div>}
       </header>
 
       <nav aria-label="Mobile primary navigation"
