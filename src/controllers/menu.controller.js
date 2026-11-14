@@ -17,6 +17,7 @@ export async function listMenuFeed(req, res, next) {
       .eq('is_available', true)
       .eq('restaurants.approval_status', 'approved')
       .order('created_at', { ascending: false })
+      .order('id', { ascending: true })
       .range(from, to);
 
     if (q) query = query.or(`name.ilike.%${q}%,description.ilike.%${q}%`);
