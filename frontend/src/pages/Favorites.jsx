@@ -40,7 +40,7 @@ export default function Favorites() {
       <h1 className="mt-2 font-display text-3xl font-bold text-ink">Your favorites</h1>
       <p className="mt-1 text-sm text-ink-soft">Favorite a restaurant and its dishes can be prioritized on your home feed.</p>
       {error && <div className="mt-6"><ErrorState message={error} /></div>}
-      {!error && !restaurants.length ? <div className="mt-8"><EmptyState message="You have no favorite restaurants yet. Browse restaurants and tap the heart icon to add one." /></div> : (
+      {!error && !restaurants.length ? <div className="mt-8"><EmptyState illustration="favorites" title="No favorites saved yet" message="Tap the heart on a restaurant to keep it close." /></div> : (
         <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {restaurants.map((restaurant) => (
             <RestaurantCard
