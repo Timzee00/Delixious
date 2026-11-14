@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import api from '../../lib/api.js';
+import SceneIllustration from '../ui/SceneIllustration.jsx';
+import Icon from '../ui/Icon.jsx';
 
 const PAGE_SIZE = 20;
 
@@ -45,14 +47,14 @@ export default function EarningsSection() {
     <section>
       <div className="flex items-center justify-between gap-3">
         <div><h2 className="text-lg font-semibold text-ink">Earnings history</h2><p className="mt-1 text-sm text-ink-soft">Completed delivery payouts, newest first.</p></div>
-        <button type="button" onClick={() => load(1)} className="rounded-lg border border-hairline px-3 py-2 text-sm font-medium text-ink hover:bg-sand">Refresh</button>
+        <button type="button" onClick={() => load(1)} aria-label="Refresh payout history" className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-hairline px-3 py-2 text-sm font-medium text-ink hover:bg-sand"><Icon name="refresh" size={15}/> Refresh</button>
       </div>
       {error && <p role="alert" className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         <div className="rounded-xl border border-hairline bg-white p-5 shadow-sm"><p className="text-sm text-ink-soft">Payout value on this page</p><p className="mt-2 text-2xl font-bold text-ink">{formatMoney(pageTotal)}</p></div>
         <div className="rounded-xl border border-hairline bg-white p-5 shadow-sm"><p className="text-sm text-ink-soft">Marked paid on this page</p><p className="mt-2 text-2xl font-bold text-pepper">{formatMoney(pagePaid)}</p></div>
       </div>
-      {!history.length && !error ? <div className="mt-6 rounded-xl border border-hairline p-6 text-center text-sm text-ink-soft">No completed deliveries yet.</div> : (
+      {!history.length && !error ? <div className="mt-6 rounded-2xl border border-hairline bg-paper p-7 text-center"><SceneIllustration scene="success" className="mx-auto h-28 w-40"/><h3 className="mt-2 font-display text-lg font-bold text-ink">Your payout history starts here</h3><p className="mt-1 text-sm text-ink-soft">Completed deliveries and their recorded payouts will appear here.</p></div> : (
         <>
           <div className="mt-6 overflow-hidden rounded-xl border border-hairline bg-white">
             <div className="hidden grid-cols-[1fr_1fr_auto] gap-4 border-b border-hairline bg-sand px-4 py-3 text-xs font-semibold uppercase tracking-wide text-ink-soft sm:grid"><span>Order</span><span>Restaurant</span><span>Payout</span></div>
