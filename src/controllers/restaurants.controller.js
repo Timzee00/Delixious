@@ -15,7 +15,7 @@ export async function listRestaurants(req, res, next) {
     const { search, cuisine, is_open, page, limit } = req.query;
     const from = (page - 1) * limit;
     const to = from + limit - 1;
-    let query = supabaseAdmin.from('restaurants').select(PUBLIC_FIELDS, { count: 'exact' }).eq('approval_status', 'approved').order('rating_avg', { ascending: false }).range(from, to);
+    let query = supabaseAdmin.from('restaurants').select(PUBLIC_FIELDS, { count: 'exact' }).eq('approval_status', 'approved').order('rating_avg', { ascending: false }).order('id', { ascending: true }).range(from, to);
     if (search) query = query.ilike('name', `%${search}%`);
     if (cuisine) query = query.ilike('cuisine_type', `%${cuisine}%`);
     if (is_open !== undefined) query = query.eq('is_open', is_open === 'true');
@@ -35,9 +35,16 @@ export async function getRestaurant(req, res, next) {
 
 export async function getMyRestaurants(req, res, next) {
   try {
-    const { data, error } = await supabaseAdmin.from('restaurants').select(MANAGEMENT_FIELDS).eq('owner_id', req.user.id).order('created_at', { ascending: false });
+    const { page = 1, limit = 20 } = req.query;
+    const from = (page - 1) * limit;
+    const { data, error, count } = await supabaseAdmin.from('restaurants')
+      .select(MANAGEMENT_FIELDS, { count: 'exact' })
+      .eq('owner_id', req.user.id)
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: true })
+      .range(from, from + limit - 1);
     if (error) return res.status(400).json({ error: error.message });
-    res.json({ restaurants: data || [] });
+    res.json({ restaurants: data || [], total: count || 0, page, limit });
   } catch (err) { next(err); }
 }
 
