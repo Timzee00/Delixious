@@ -16,6 +16,7 @@ function AdminOrdersSection() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -30,9 +31,9 @@ function AdminOrdersSection() {
       .catch(err => { if (!cancelled) setError(err.response?.data?.error || 'Could not load orders.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [page]);
+  }, [page, retry]);
 
-  if (error) return <div><p role="alert" className="rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">{error}</p><button type="button" onClick={() => setPage(page)} className="mt-3 text-sm font-semibold text-pepper underline">Retry</button></div>;
+  if (error) return <div><p role="alert" className="rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">{error}</p><button type="button" onClick={() => setRetry(value => value + 1)} className="mt-3 text-sm font-semibold text-pepper underline">Retry</button></div>;
   if (loading) return <p className="text-sm text-ink-soft">Loading marketplace orders…</p>;
   if (!orders.length) return <div className="rounded-xl border border-hairline bg-paper p-8 text-center text-sm text-ink-soft">No orders have been placed yet.</div>;
 
