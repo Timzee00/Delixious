@@ -180,6 +180,7 @@ export async function listAvailableDeliveries(req, res, next) {
       .eq('orders.payment_status', 'paid')
       .in('orders.status', CLAIMABLE_ORDER_STATUSES)
       .order('updated_at', { ascending: true })
+      .order('order_id', { ascending: true })
       .range(from, from + limit - 1);
     if (error) throw error;
     res.json({ deliveries: data || [], total: count || 0, page, limit });
@@ -336,6 +337,7 @@ export async function listMyDeliveries(req, res, next) {
       .eq('delivery_agent_id', req.user.id)
       .neq('status', 'delivered')
       .order('updated_at', { ascending: false })
+      .order('order_id', { ascending: true })
       .range(from, from + limit - 1);
     if (error) throw error;
     res.json({ deliveries: data || [], total: count || 0, page, limit });
