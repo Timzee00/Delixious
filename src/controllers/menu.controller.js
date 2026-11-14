@@ -39,25 +39,35 @@ export async function listMenuFeed(req, res, next) {
 
 export async function getRestaurantMenu(req, res, next) {
   try {
+    const { page = 1, limit = 30, q, category } = req.query;
+    const from = (page - 1) * limit;
     const { data: restaurant, error: restaurantError } = await supabaseAdmin
       .from('restaurants').select('id').eq('id', req.params.id).eq('approval_status', 'approved').single();
     if (restaurantError || !restaurant) return res.status(404).json({ error: 'Restaurant not found.' });
 
-    const { data, error } = await supabaseAdmin.from('menu_items').select('*')
-      .eq('restaurant_id', req.params.id).eq('is_available', true)
-      .order('category', { ascending: true }).order('name', { ascending: true });
-    if (error) return res.status(400).json({ error: error.message });
+    let query = supabaseAdmin.from('menu_items')
+      .select('id,name,description,price,image_url,category,is_available,restaurant_id', { count: 'exact' })
+      .eq('restaurant_id', req.params.id)
+      .eq('is_available', true)
+      .order('category', { ascending: true })
+      .order('name', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, from + limit - 1);
+    if (q) query = query.ilike('name', `%${q}%`);
+    if (category) query = query.eq('category', category);
 
-    const grouped_by_category = data.reduce((acc, item) => {
+    const { data, error, count } = await query;
+    if (error) throw error;
+    const menu_items = data || [];
+    const grouped_by_category = menu_items.reduce((acc, item) => {
       const key = item.category || 'Other';
       acc[key] = acc[key] || [];
       acc[key].push(item);
       return acc;
     }, {});
-    res.json({ menu_items: data, grouped_by_category });
+    res.json({ menu_items, total: count || 0, page, limit, grouped_by_category });
   } catch (err) { next(err); }
 }
-
 export async function createMenuItem(req, res, next) {
   try {
     const { data, error } = await supabaseAdmin.from('menu_items').insert({ ...req.body, restaurant_id: req.restaurant.id }).select().single();
