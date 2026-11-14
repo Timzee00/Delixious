@@ -164,7 +164,17 @@ export async function sendBroadcast(req, res, next) {
         .range(offset, offset + PAGE_SIZE - 1);
       if (role) query = query.eq('role', role);
       const { data: users, error: usersError, count } = await query;
-      if (usersError) return res.status(400).json({ error: usersError.message, sent_count: sentCount });
+      if (usersError) {
+        if (sentCount > 0) {
+          return res.status(502).json({
+            code: 'BROADCAST_PARTIAL_FAILURE',
+            error: 'Broadcast stopped after a partial delivery. Review the sent count before retrying.',
+            sent_count: sentCount,
+            recipient_total: recipientTotal,
+          });
+        }
+        return res.status(400).json({ error: usersError.message, sent_count: 0 });
+      }
       if (offset === 0) recipientTotal = count || 0;
       if (!users?.length) break;
 
