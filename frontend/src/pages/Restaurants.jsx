@@ -21,8 +21,7 @@ export default function Restaurants() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
-
-  useEffect(() => { setPage(1); }, [query, cuisine, openOnly]);
+  const [favoriteError, setFavoriteError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -36,14 +35,29 @@ export default function Restaurants() {
         if (query.trim()) params.search = query.trim();
         if (cuisine !== 'All') params.cuisine = cuisine;
         if (openOnly) params.is_open = true;
-        const requests = [api.get('/restaurants', { params, signal: controller.signal })];
-        if (first && isAuthenticated) requests.push(api.get('/favorites/restaurants', { signal: controller.signal }));
-        const [restaurantResponse, favoriteResponse] = await Promise.all(requests);
+        const { data } = await api.get('/restaurants', { params, signal: controller.signal });
         if (cancelled) return;
-        const data = restaurantResponse.data;
-        setRestaurants((current) => first ? data.restaurants : [...current, ...data.restaurants]);
+        const rows = data.restaurants || [];
+        setRestaurants(current => first ? rows : [...current, ...rows]);
         setTotal(data.total || 0);
-        if (favoriteResponse) setFavoriteIds(new Set(favoriteResponse.data.restaurant_ids || []));
+
+        if (first && isAuthenticated && rows.length) {
+          try {
+            const { data: favoriteData } = await api.get('/favorites/restaurants', {
+              params: { restaurant_ids: rows.map(restaurant => restaurant.id).join(',') },
+              signal: controller.signal,
+            });
+            if (!cancelled) {
+              setFavoriteIds(new Set(favoriteData.restaurant_ids || []));
+              setFavoriteError('');
+            }
+          } catch (favoriteErr) {
+            if (!cancelled && favoriteErr.code !== 'ERR_CANCELED') setFavoriteError('Saved status could not be checked right now.');
+          }
+        } else if (first) {
+          setFavoriteIds(new Set());
+          setFavoriteError('');
+        }
       } catch (err) {
         if (!cancelled && err.code !== 'ERR_CANCELED') setError(err.response?.data?.error || 'Could not load restaurants right now.');
       } finally {
@@ -83,6 +97,7 @@ export default function Restaurants() {
           <label className="ml-1 flex items-center gap-2 text-sm text-ink-soft"><input type="checkbox" checked={openOnly} onChange={(event) => setOpenOnly(event.target.checked)} className="accent-pepper" />Open now</label>
         </div>
       </div>
+      {favoriteError && <p role="status" className="mt-4 text-xs text-ink-soft">{favoriteError}</p>}
       <div className="mt-8">
         {loading ? <GridSkeleton /> : error ? <ErrorState message={error} /> : restaurants.length ? <><div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">{restaurants.map((restaurant) => <RestaurantCard key={restaurant.id} restaurant={restaurant} isFavorite={favoriteIds.has(restaurant.id)} favoriteBusy={favoriteBusy.has(restaurant.id)} onToggleFavorite={isAuthenticated ? () => toggleFavorite(restaurant.id) : undefined} />)}</div>{hasMore && <button type="button" disabled={loadingMore} onClick={() => setPage((value) => value + 1)} className="mt-6 w-full rounded-lg border border-hairline py-3 text-sm font-semibold text-ink-soft hover:border-pepper hover:text-pepper disabled:opacity-60">{loadingMore ? 'Loading...' : 'Load more restaurants'}</button>}</> : <EmptyState message="No approved restaurants match your search yet." />}
       </div>
