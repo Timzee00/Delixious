@@ -20,6 +20,7 @@ export async function listRestaurantsAdmin(req, res, next) {
       .from('restaurants')
       .select('id, name, cuisine_type, address, approval_status, owner_id, created_at', { count: 'exact' })
       .order('created_at', { ascending: false })
+      .order('id', { ascending: true })
       .range(from, to);
 
     if (status) query = query.eq('approval_status', status);
@@ -59,6 +60,7 @@ export async function listRidersAdmin(req, res, next) {
       .select('id, full_name, email, phone, rider_approval_status, rider_rating_avg, rider_rating_count, created_at', { count: 'exact' })
       .eq('role', 'delivery_agent')
       .order('created_at', { ascending: false })
+      .order('id', { ascending: true })
       .range(from, to);
 
     if (error) return res.status(400).json({ error: error.message });
@@ -95,6 +97,7 @@ export async function listUsersAdmin(req, res, next) {
       .from('profiles')
       .select('id, full_name, email, phone, role, is_suspended, created_at', { count: 'exact' })
       .order('created_at', { ascending: false })
+      .order('id', { ascending: true })
       .range(from, to);
 
     if (role) query = query.eq('role', role);
@@ -133,6 +136,7 @@ export async function listOrdersAdmin(req, res, next) {
       .from('orders')
       .select('id, user_id, restaurant_id, status, total_amount, platform_commission, created_at', { count: 'exact' })
       .order('created_at', { ascending: false })
+      .order('id', { ascending: true })
       .range(from, to);
 
     if (error) return res.status(400).json({ error: error.message });
