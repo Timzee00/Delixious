@@ -18,14 +18,15 @@ import {
   updateDeliveryStatusSchema,
   searchAgentsQuerySchema,
   availableDeliveriesQuerySchema,
+  deliveryListQuerySchema,
 } from '../schemas/delivery.schema.js';
 
 const router = Router();
 
 // NOTE: fixed paths must be registered before /:orderId or Express would
 // treat them as an orderId.
-router.get('/my-deliveries', requireAuth, requireRole('delivery_agent', 'admin'), listMyDeliveries);
-router.get('/my-deliveries/history', requireAuth, requireRole('delivery_agent', 'admin'), listMyDeliveryHistory);
+router.get('/my-deliveries', requireAuth, requireRole('delivery_agent', 'admin'), validate({ query: deliveryListQuerySchema }), listMyDeliveries);
+router.get('/my-deliveries/history', requireAuth, requireRole('delivery_agent', 'admin'), validate({ query: deliveryListQuerySchema }), listMyDeliveryHistory);
 router.get('/available', requireAuth, requireRole('delivery_agent', 'admin'), validate({ query: availableDeliveriesQuerySchema }), listAvailableDeliveries);
 router.get(
   '/agents/search',
