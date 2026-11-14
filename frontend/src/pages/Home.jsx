@@ -182,7 +182,6 @@ export default function Home({ explore = false }) {
     api.get('/favorites/restaurants', { params: { page: 1, limit: 12 }, signal: controller.signal })
       .then(async ({ data }) => {
         const ids = data.restaurant_ids || [];
-        setFavoriteIds(new Set(ids));
         if (!ids.length) { setFavoriteFoods([]); return; }
         const response = await api.get('/menu-items/feed', {
           params: { page: 1, limit: 8, restaurant_ids: ids.join(',') },
@@ -200,6 +199,24 @@ export default function Home({ explore = false }) {
       }).catch(() => {});
     return () => controller.abort();
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    if (!isAuthenticated || !restaurants.length) {
+      if (!isAuthenticated) setFavoriteIds(new Set());
+      return () => controller.abort();
+    }
+    setFavoriteIds(new Set());
+    api.get('/favorites/restaurants', {
+      params: { restaurant_ids: restaurants.map(restaurant => restaurant.id).join(',') },
+      signal: controller.signal,
+    }).then(({ data }) => {
+      if (!controller.signal.aborted) setFavoriteIds(new Set(data.restaurant_ids || []));
+    }).catch(err => {
+      if (!controller.signal.aborted && err.code !== 'ERR_CANCELED') setFavoriteError('Saved status could not be checked right now.');
+    });
+    return () => controller.abort();
+  }, [isAuthenticated, restaurants]);
 
   async function toggleFavorite(id) {
     if (!isAuthenticated || favoriteBusy.has(id)) return;
