@@ -10,7 +10,7 @@ import { Button } from '../ui/Primitives.jsx';
 const PAGE_SIZE = 20;
 const FILTERS = [
   { id: 'active', label: 'Active orders', statuses: 'pending,confirmed,preparing,out_for_delivery', paidOnly: true },
-  { id: 'pending', label: 'Awaiting review', statuses: 'pending' },
+  { id: 'pending', label: 'Pending', statuses: 'pending' },
   { id: 'preparing', label: 'In kitchen', statuses: 'confirmed,preparing', paidOnly: true },
   { id: 'delivered', label: 'Completed', statuses: 'delivered' },
   { id: 'cancelled', label: 'Cancelled', statuses: 'cancelled' },
@@ -18,7 +18,6 @@ const FILTERS = [
 ];
 
 const NEXT_STATUS = { confirmed: 'preparing' };
-const NEXT_LABEL = { confirmed: 'Start preparing' };
 const STATUS_STYLES = {
   pending: 'bg-gold/15 text-[#8A5A00]',
   confirmed: 'bg-[#FFF2D8] text-[#8A5A00]',
@@ -63,9 +62,12 @@ export default function OrdersQueueSection({ restaurant }) {
     setOrders([]);
     setPage(1);
     load(1);
-    const interval = window.setInterval(() => load(1), 25000);
-    return () => window.clearInterval(interval);
   }, [load]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => load(page), 25000);
+    return () => window.clearInterval(interval);
+  }, [load, page]);
 
   async function advanceStatus(order) {
     const nextStatus = NEXT_STATUS[order.status];
