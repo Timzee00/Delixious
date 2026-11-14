@@ -23,8 +23,6 @@ const LABELS = {
 
 export default function SceneIllustration({ scene = 'discovery', className = '' }) {
   const label = LABELS[scene] || LABELS.discovery;
-  const common = { stroke: PALETTE.ink, strokeWidth: 3.2, strokeLinecap: 'round', strokeLinejoin: 'round' };
-
   return (
     <svg viewBox="0 0 200 144" className={className} role="img" aria-label={label} fill="none" xmlns="http://www.w3.org/2000/svg">
       <circle cx="100" cy="72" r="60" fill={PALETTE.sand}/>
