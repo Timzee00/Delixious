@@ -19,7 +19,6 @@ export default function RiderDashboard() {
   const { profile } = useAuth();
   const [tab, setTab] = useState('Available');
   const isApproved = profile?.rider_approval_status === 'approved';
-  const isPending = profile?.rider_approval_status === 'pending' || !profile?.rider_approval_status;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-9">
