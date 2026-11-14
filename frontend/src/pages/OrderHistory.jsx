@@ -23,10 +23,12 @@ export default function OrderHistory() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     const isFirstPage = page === 1;
+    setError('');
     if (isFirstPage) setLoading(true);
     else setLoadingMore(true);
 
@@ -50,7 +52,7 @@ export default function OrderHistory() {
     return () => {
       cancelled = true;
     };
-  }, [page]);
+  }, [page, retry]);
 
   const hasMore = orders.length < total;
 
@@ -62,11 +64,12 @@ export default function OrderHistory() {
         {loading ? (
           <p className="text-center font-mono text-sm text-ink-soft">Loading...</p>
         ) : error ? (
-          <ErrorState message={error} />
+          <ErrorState message={error} onRetry={() => setRetry(value => value + 1)} />
         ) : orders.length === 0 ? (
           <EmptyState illustration="orders" title="Your order history starts here" message="Your completed and current orders will appear here." />
         ) : (
           <>
+            {error && <p role="alert" className="mb-4 rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">{error} <button type="button" onClick={() => setRetry(value => value + 1)} className="ml-1 font-semibold underline">Retry this page</button></p>}
             <div className="space-y-3">
               {orders.map((order) => (
                 <Link
