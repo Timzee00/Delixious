@@ -1,6 +1,6 @@
 # Delixious — UX, reliability and scalability release gates
 
-Status: **engineering changes proposed in PR #1; not deployed**.
+Status: **PR #1 merged to `main`; current dashboard and pagination improvements are committed to `main`; not deployed or production-verified**.
 The production Render service still tracks the legacy `delixious-backend` repository.
 
 ## Scope of this pass
@@ -78,6 +78,17 @@ These are **goals**, not measured achievements:
 
 **Release decision:** do not merge/deploy to production or accept new public payments until all P0 gates are green.
 
+
+
+## Marketplace workspace and large-record handling (November 14, 2026)
+
+- Customer, restaurant, rider and admin navigation now changes by authenticated role; operational roles no longer receive customer cart/location navigation as their primary workspace.
+- Rider active deliveries and completed delivery history now use validated, bounded SQL pagination (20 per page by default, maximum 50) with exact result counts.
+- Rider earnings totals are explicitly labeled as the currently loaded page, not lifetime totals.
+- Admin restaurant applications, rider records, user accounts and order review now use bounded pages with explicit result ranges and next/previous controls.
+- Added controller tests for rider active/history SQL ranges and response metadata.
+
+**Still not verified:** full backend/frontend Vitest suites, Vite production build, rendered role-specific screens, browser/device E2E, query-plan performance on production-sized data, and staging load tests. These commits do not establish a measured capacity ceiling or production readiness.
 
 ## Browser compatibility and same-origin auth gate (November 1, 2026)
 
