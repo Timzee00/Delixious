@@ -12,6 +12,7 @@ const LABELS = {
   discovery: 'A plate ready for something delicious',
   cart: 'An empty shopping bag',
   orders: 'A receipt waiting for your first order',
+  notifications: 'A bell with a new notification',
   favorites: 'A heart above a favorite plate',
   kitchen: 'A covered serving plate',
   delivery: 'A delivery rider on the way',
@@ -33,6 +34,13 @@ export default function SceneIllustration({ scene = 'discovery', className = '' 
         <path d="M87 64h50l-7 25H92z" fill="#FBE0D2" stroke={PALETTE.pepper} strokeWidth="3"/>
         <circle cx="91" cy="112" r="6" fill={PALETTE.pepper}/><circle cx="131" cy="112" r="6" fill={PALETTE.pepper}/>
         <path d="M107 70v15m-7.5-7.5h15" stroke={PALETTE.pepper} strokeWidth="3.5" strokeLinecap="round"/>
+      </>}
+      {scene === 'notifications' && <>
+        <rect x="65" y="38" width="70" height="75" rx="12" fill={PALETTE.paper} stroke={PALETTE.ink} strokeWidth="3"/>
+        <path d="M81 57h38M81 67h28" stroke={PALETTE.muted} strokeWidth="4" strokeLinecap="round"/>
+        <path d="M119 88a17 17 0 0 0-34 0c0 8-4 10-4 10h42s-4-2-4-10Z" fill="#FBE0D2" stroke={PALETTE.pepper} strokeWidth="3" strokeLinejoin="round"/>
+        <path d="M98 102a5 5 0 0 0 8 0" stroke={PALETTE.ink} strokeWidth="2.5" strokeLinecap="round"/>
+        <circle cx="135" cy="45" r="8" fill={PALETTE.pepper}/>
       </>}
       {(scene === 'discovery' || scene === 'favorites' || scene === 'orders') && <>
         <ellipse cx="100" cy="82" rx="49" ry="29" fill={PALETTE.paper} stroke={PALETTE.muted} strokeWidth="4"/>
