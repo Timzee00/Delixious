@@ -52,12 +52,11 @@ export default function StatsSection() {
   const cards = [
     { icon: 'store-front', label: 'Restaurants', value: integer(stats.total_restaurants), note: `${integer(stats.pending_restaurants)} awaiting review`, tone: 'brand' },
     { icon: 'bike', label: 'Riders', value: integer(stats.total_riders), note: `${integer(stats.pending_riders)} awaiting review`, tone: 'neutral' },
-    { icon: 'users', label: 'Customers', value: integer(stats.total_customers), note: 'Registered customer accounts', tone: 'neutral' },
+    { icon: 'user', label: 'Customers', value: integer(stats.total_customers), note: 'Registered customer accounts', tone: 'neutral' },
     { icon: 'clipboard-list', label: 'Orders', value: integer(stats.total_orders), note: 'All marketplace orders', tone: 'success' },
     { icon: 'banknote', label: 'Order value', value: naira(stats.total_revenue), note: 'Aggregated marketplace value', tone: 'brand' },
     { icon: 'chart-no-axes-column', label: 'Platform commission', value: naira(stats.total_commission), note: 'Recorded platform commission', tone: 'success' },
-    { icon: 'clock-3', label: 'Restaurant reviews', value: integer(stats.pending_restaurants), note: 'Partner applications awaiting review', tone: 'warning' },
-    { icon: 'shield-check', label: 'Rider reviews', value: integer(stats.pending_riders), note: 'Rider applications awaiting review', tone: 'warning' },
+    { icon: 'clock-3', label: 'Partner applications', value: integer(Number(stats.pending_restaurants || 0) + Number(stats.pending_riders || 0)), note: 'Restaurants and riders awaiting review', tone: 'warning' },
   ];
 
   return (
@@ -69,18 +68,7 @@ export default function StatsSection() {
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map(card => <StatCard key={card.label} {...card}/>)}
       </div>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-hairline bg-paper p-5">
-          <div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-pepper/10 text-pepper"><Icon name="store-front" size={19}/></span><div><h3 className="font-display text-base font-bold text-ink">Restaurant onboarding</h3><p className="text-xs text-ink-soft">Partner applications waiting for an admin decision</p></div></div>
-          <p className="mt-5 font-display text-3xl font-bold text-ink">{integer(stats.pending_restaurants)}</p>
-          <p className="mt-1 text-xs text-ink-soft">Pending restaurant applications</p>
-        </div>
-        <div className="rounded-2xl border border-hairline bg-paper p-5">
-          <div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-jade-soft text-jade"><Icon name="bike" size={19}/></span><div><h3 className="font-display text-base font-bold text-ink">Rider onboarding</h3><p className="text-xs text-ink-soft">Rider applications waiting for review</p></div></div>
-          <p className="mt-5 font-display text-3xl font-bold text-ink">{integer(stats.pending_riders)}</p>
-          <p className="mt-1 text-xs text-ink-soft">Pending rider applications</p>
-        </div>
-      </div>
+
     </section>
   );
 }
