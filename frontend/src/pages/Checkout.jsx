@@ -4,6 +4,7 @@ import api from '../lib/api.js';
 import { useCart } from '../context/CartContext.jsx';
 import { formatNaira } from '../lib/format.js';
 import { getDeliveryAddress, saveDeliveryAddress } from '../lib/deliveryAddress.js';
+import SceneIllustration from '../components/ui/SceneIllustration.jsx';
 
 export default function Checkout() {
   const { cart, cartError, refreshCart } = useCart();
@@ -29,7 +30,8 @@ export default function Checkout() {
     return (
       <div className="mx-auto max-w-md px-4 py-16 text-center">
         <div className="ticket p-10">
-          <h1 className="font-display text-xl font-bold text-ink">Nothing to check out</h1>
+          <SceneIllustration scene="cart" className="mx-auto mb-3 h-28 w-40" />
+          <h1 className="font-display text-xl font-bold text-ink">Your cart is waiting</h1>
           <p className="mt-2 text-ink-soft">Your cart is empty.</p>
           <Link
             to="/"
