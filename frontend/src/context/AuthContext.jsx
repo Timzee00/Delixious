@@ -146,6 +146,7 @@ export function AuthProvider({ children }) {
     loading,
     sessionIssue,
     retrySession,
+    refreshProfile,
     login,
     signup,
     logout,
