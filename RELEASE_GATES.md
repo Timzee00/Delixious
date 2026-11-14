@@ -84,11 +84,13 @@ These are **goals**, not measured achievements:
 
 - Customer, restaurant, rider and admin navigation now changes by authenticated role; operational roles no longer receive customer cart/location navigation as their primary workspace.
 - Rider active deliveries and completed delivery history now use validated, bounded SQL pagination (20 per page by default, maximum 50) with exact result counts.
+- Food discovery now exposes paged dishes through an explicit load-more interaction instead of silently stopping after the first 12 records.
+- Paginated food, admin and rider query paths use deterministic secondary ordering to reduce duplicate/omitted records when timestamps tie.
 - Rider earnings totals are explicitly labeled as the currently loaded page, not lifetime totals.
 - Admin restaurant applications, rider records, user accounts and order review now use bounded pages with explicit result ranges and next/previous controls.
 - Added controller tests for rider active/history SQL ranges and response metadata.
 
-**Still not verified:** full backend/frontend Vitest suites, Vite production build, rendered role-specific screens, browser/device E2E, query-plan performance on production-sized data, and staging load tests. These commits do not establish a measured capacity ceiling or production readiness.
+**Still not verified:** full backend/frontend Vitest suites, Vite production build, rendered role-specific screens, browser/device E2E, query-plan performance on production-sized data, and staging load tests. The latest Netlify production-context build for commit `2b1a4997f11b3aea611c4de0eddd0215cea44f57` reached **ready** and uploaded 33 changed files; this confirms the Vite build and Netlify packaging for that commit, not full tests or a production-alias switch. Subsequent backend ordering commits still require a fresh backend test run. These commits do not establish a measured capacity ceiling or production readiness.
 
 ## Browser compatibility and same-origin auth gate (November 1, 2026)
 
