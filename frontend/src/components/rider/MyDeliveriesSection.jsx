@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import api from '../../lib/api.js';
+import SceneIllustration from '../ui/SceneIllustration.jsx';
+import Icon from '../ui/Icon.jsx';
 
 const PAGE_SIZE = 20;
 
@@ -63,15 +65,15 @@ export default function MyDeliveriesSection() {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-ink">My deliveries</h2>
-          <p className="mt-1 text-sm text-ink-soft">Track active deliveries and move them through the delivery stages.</p>
+          <p className="mt-1 text-sm text-ink-soft">Your assigned pickups and drop-offs.</p>
         </div>
-        <button type="button" onClick={() => load(1)} className="rounded-lg border border-hairline px-3 py-2 text-sm font-medium text-ink hover:bg-sand">Refresh</button>
+        <button type="button" onClick={() => load(1)} aria-label="Refresh active deliveries" className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-hairline px-3 py-2 text-sm font-medium text-ink hover:bg-sand"><Icon name="refresh" size={15}/> Refresh</button>
       </div>
 
       {error && <p role="alert" className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
       {!deliveries.length && !error ? (
-        <div className="mt-6 rounded-xl border border-hairline p-6 text-center text-sm text-ink-soft">You have no active deliveries.</div>
+        <div className="mt-6 rounded-2xl border border-hairline bg-paper p-7 text-center"><SceneIllustration scene="delivery" className="mx-auto h-28 w-40"/><h3 className="mt-2 font-display text-lg font-bold text-ink">No active deliveries</h3><p className="mt-1 text-sm text-ink-soft">Claim an eligible job and it will appear here.</p></div>
       ) : (
         <>
           <div className="mt-6 space-y-4">
