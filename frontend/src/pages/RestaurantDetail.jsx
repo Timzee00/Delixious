@@ -191,7 +191,7 @@ export default function RestaurantDetail() {
         ) : (
           <>
             <div className="space-y-8">
-              {Object.entries(grouped).map(([categoryName, items]) => <section key={categoryName}><h3 className="font-display text-lg font-bold text-ink">{categoryName}</h3><div className="mt-3 space-y-3">{items.map(item => <MenuItemRow key={item.id} item={item} status={itemStatus[item.id]} onAdd={() => handleAdd(item)}/>)}</div></section>)}
+              {Object.entries(grouped).map(([categoryName, items]) => <section key={categoryName}><h3 className="font-display text-lg font-bold text-ink">{categoryName}</h3><div className="mt-3 space-y-3">{items.map(item => <MenuItemRow key={item.id} item={item} status={itemStatus[item.id]} onAdd={() => handleAdd(item)} disabled={!restaurant.is_open}/>)}</div></section>)}
             </div>
             {menuItems.length < menuTotal && <div className="mt-7 flex flex-col items-center gap-2"><p className="text-xs text-ink-soft">Showing {menuItems.length.toLocaleString()} of {menuTotal.toLocaleString()} dishes</p>{menuMoreError && <p role="alert" className="text-sm text-danger">{menuMoreError}</p>}<Button variant="secondary" busy={menuLoadingMore} onClick={loadMoreMenu}>{menuMoreError ? 'Retry loading menu' : 'Load more dishes'}</Button></div>}
           </>
