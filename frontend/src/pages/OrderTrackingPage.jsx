@@ -4,8 +4,16 @@ import api from '../lib/api.js';
 import supabase from '../lib/supabase.js';
 import { formatNaira } from '../lib/format.js';
 import ConfirmModal from '../components/ConfirmModal.jsx';
+import Icon from '../components/ui/Icon.jsx';
+import SceneIllustration from '../components/ui/SceneIllustration.jsx';
 
-const STEPS = ['pending', 'confirmed', 'preparing', 'out_for_delivery', 'delivered'];
+const STEPS = [
+  { id: 'pending', label: 'Placed', icon: 'receipt-text' },
+  { id: 'confirmed', label: 'Accepted', icon: 'circle-check' },
+  { id: 'preparing', label: 'Cooking', icon: 'chef-hat' },
+  { id: 'out_for_delivery', label: 'On the way', icon: 'bike' },
+  { id: 'delivered', label: 'Delivered', icon: 'package-check' },
+];
 
 export default function OrderTrackingPage() {
   const { id } = useParams();
@@ -117,7 +125,7 @@ export default function OrderTrackingPage() {
     );
   }
 
-  const stepIndex = STEPS.indexOf(order.status);
+  const stepIndex = STEPS.findIndex(step => step.id === order.status);
   const isCancelled = order.status === 'cancelled';
   const canCancel = ['pending', 'confirmed'].includes(order.status)
     && ['pending', 'failed'].includes(order.payment_status)
@@ -145,22 +153,34 @@ export default function OrderTrackingPage() {
 
         {error && <p className="mt-4 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
 
+        <div className="mt-5 flex items-center gap-4 rounded-2xl bg-sand/70 p-3 sm:p-4">
+          <SceneIllustration scene={isCancelled ? 'unavailable' : order.status === 'delivered' ? 'success' : order.status === 'out_for_delivery' ? 'delivery' : 'kitchen'} className="h-20 w-28 shrink-0 sm:h-24 sm:w-32"/>
+          <div className="min-w-0">
+            <p className="font-display text-base font-bold capitalize text-ink">{isCancelled ? 'Order cancelled' : order.status === 'out_for_delivery' ? 'Your meal is on the way' : order.status === 'delivered' ? 'Delivered successfully' : order.status === 'preparing' ? 'The kitchen is preparing your meal' : order.status === 'confirmed' ? 'The restaurant accepted your order' : 'Order received'}</p>
+            <p className="mt-1 text-xs leading-5 text-ink-soft">{isCancelled ? 'This order is no longer active.' : order.status === 'delivered' ? 'We hope you enjoyed your meal.' : 'Track the steps below for the latest confirmed status.'}</p>
+          </div>
+        </div>
+
         {isCancelled ? (
           <p className="mt-4 rounded-lg bg-ink-soft/10 px-3 py-2 text-sm text-ink-soft">This order was cancelled.</p>
         ) : (
-          <div className="mt-6 flex items-center justify-between">
-            {STEPS.map((step, i) => (
-              <div key={step} className="flex flex-1 flex-col items-center">
-                <span className={`h-2.5 w-2.5 rounded-full ${i <= stepIndex ? 'bg-pepper' : 'bg-hairline'}`} />
-                <span
-                  className={`mt-2 text-center text-[10px] font-mono uppercase leading-tight ${
-                    i <= stepIndex ? 'text-ink' : 'text-ink-soft/50'
-                  }`}
-                >
-                  {step.replace(/_/g, ' ')}
-                </span>
-              </div>
-            ))}
+          <div className="mt-6">
+            <div className="grid grid-cols-5 gap-2">
+              {STEPS.map((step, index) => {
+                const complete = index <= stepIndex;
+                return (
+                  <div key={step.id} className="flex min-w-0 flex-col items-center text-center">
+                    <span className={'grid h-9 w-9 place-items-center rounded-xl ' + (complete ? 'bg-pepper text-white' : 'bg-sand text-ink-soft')}>
+                      <Icon name={step.icon} size={17}/>
+                    </span>
+                    <span className={'mt-2 text-[10px] font-semibold leading-tight sm:text-xs ' + (complete ? 'text-ink' : 'text-ink-soft')}>{step.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-hairline">
+              <div className="h-full rounded-full bg-pepper transition-all" style={{ width: (Math.max(0, stepIndex) / (STEPS.length - 1) * 100) + '%' }}/>
+            </div>
           </div>
         )}
 
