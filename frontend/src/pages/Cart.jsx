@@ -5,6 +5,7 @@ import { useCart } from '../context/CartContext.jsx';
 import { formatNaira } from '../lib/format.js';
 import ConfirmModal from '../components/ConfirmModal.jsx';
 import Img from '../components/Img.jsx';
+import SceneIllustration from '../components/ui/SceneIllustration.jsx';
 
 export default function Cart() {
   const { cart, refreshCart, cartError } = useCart();
@@ -33,9 +34,10 @@ export default function Cart() {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 text-center">
         <div className="ticket p-10">
-          <p className="font-mono text-xs uppercase tracking-widest text-pepper">Empty</p>
+          <SceneIllustration scene="cart" className="mx-auto mb-2 h-32 w-44" />
+          <p className="font-mono text-xs uppercase tracking-widest text-pepper">Your next meal starts here</p>
           <h1 className="mt-2 font-display text-2xl font-bold text-ink">Your cart is empty</h1>
-          <p className="mt-2 text-ink-soft">Find something delicious to order.</p>
+          <p className="mt-2 text-ink-soft">Choose a kitchen and add a dish to begin.</p>
           <Link
             to="/"
             className="mt-6 inline-block rounded-lg bg-pepper px-5 py-2.5 font-semibold text-white hover:bg-pepper-dark"
