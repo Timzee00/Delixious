@@ -149,26 +149,49 @@ export async function listOrdersAdmin(req, res, next) {
 export async function sendBroadcast(req, res, next) {
   try {
     const { title, message, role } = req.body;
+    const PAGE_SIZE = 500;
+    const INSERT_SIZE = 200;
+    let offset = 0;
+    let recipientTotal = 0;
+    let sentCount = 0;
 
-    let query = supabaseAdmin.from('profiles').select('id');
-    if (role) query = query.eq('role', role);
+    // Never load every profile into application memory. Read stable ID pages
+    // and insert notifications in small batches for large marketplaces.
+    while (true) {
+      let query = supabaseAdmin.from('profiles')
+        .select('id', offset === 0 ? { count: 'exact' } : {})
+        .order('id', { ascending: true })
+        .range(offset, offset + PAGE_SIZE - 1);
+      if (role) query = query.eq('role', role);
+      const { data: users, error: usersError, count } = await query;
+      if (usersError) return res.status(400).json({ error: usersError.message, sent_count: sentCount });
+      if (offset === 0) recipientTotal = count || 0;
+      if (!users?.length) break;
 
-    const { data: users, error: usersError } = await query;
-    if (usersError) return res.status(400).json({ error: usersError.message });
+      for (let index = 0; index < users.length; index += INSERT_SIZE) {
+        const rows = users.slice(index, index + INSERT_SIZE).map(user => ({
+          user_id: user.id,
+          type: 'broadcast',
+          title,
+          body: message,
+        }));
+        const { error: insertError } = await supabaseAdmin.from('notifications').insert(rows);
+        if (insertError) {
+          return res.status(502).json({
+            code: 'BROADCAST_PARTIAL_FAILURE',
+            error: 'Broadcast stopped after a partial delivery. Review the sent count before retrying.',
+            sent_count: sentCount,
+            recipient_total: recipientTotal,
+          });
+        }
+        sentCount += rows.length;
+      }
 
-    const rows = users.map((u) => ({
-      user_id: u.id,
-      type: 'broadcast',
-      title,
-      body: message,
-    }));
-
-    if (rows.length) {
-      const { error: insertError } = await supabaseAdmin.from('notifications').insert(rows);
-      if (insertError) return res.status(400).json({ error: insertError.message });
+      offset += users.length;
+      if (users.length < PAGE_SIZE || offset >= recipientTotal) break;
     }
 
-    res.status(201).json({ message: `Broadcast sent to ${rows.length} user(s).` });
+    res.status(201).json({ message: `Broadcast sent to ${sentCount.toLocaleString()} user(s).`, sent_count: sentCount, recipient_total: recipientTotal });
   } catch (err) {
     next(err);
   }
