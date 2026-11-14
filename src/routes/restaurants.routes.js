@@ -17,8 +17,8 @@ import { getRestaurantMenu, createMenuItem } from '../controllers/menu.controlle
 import { getRestaurantMenuManagement } from '../controllers/menu-management.controller.js';
 import { listRestaurantOrders } from '../controllers/orders.controller.js';
 import { getRestaurantReviews } from '../controllers/reviews.controller.js';
-import { createRestaurantSchema, updateRestaurantSchema, listRestaurantsQuerySchema } from '../schemas/restaurants.schema.js';
-import { createMenuItemSchema } from '../schemas/menu.schema.js';
+import { createRestaurantSchema, updateRestaurantSchema, listRestaurantsQuerySchema, listMyRestaurantsQuerySchema } from '../schemas/restaurants.schema.js';
+import { createMenuItemSchema, listRestaurantMenuQuerySchema, listMenuManagementQuerySchema } from '../schemas/menu.schema.js';
 import { listOrdersQuerySchema } from '../schemas/orders.schema.js';
 import { listReviewsQuerySchema } from '../schemas/reviews.schema.js';
 
@@ -26,9 +26,9 @@ const router = Router();
 
 // ---------- Public ----------
 router.get('/', validate({ query: listRestaurantsQuerySchema }), listRestaurants);
-router.get('/mine', requireAuth, requireRole('restaurant_owner', 'admin'), getMyRestaurants);
+router.get('/mine', requireAuth, requireRole('restaurant_owner', 'admin'), validate({ query: listMyRestaurantsQuerySchema }), getMyRestaurants);
 router.get('/:id', getRestaurant);
-router.get('/:id/menu', getRestaurantMenu);
+router.get('/:id/menu', validate({ query: listRestaurantMenuQuerySchema }), getRestaurantMenu);
 router.get('/:id/reviews', validate({ query: listReviewsQuerySchema }), getRestaurantReviews);
 
 // ---------- Restaurant owner only ----------
@@ -37,7 +37,7 @@ router.put('/:id', requireAuth, requireRestaurantOwnership, validate({ body: upd
 router.patch('/:id/toggle-open', requireAuth, requireRestaurantOwnership, toggleOpen);
 router.post('/:id/bank-details', requireAuth, requireRestaurantOwnership, validate({ body: bankDetailsSchema }), submitBankDetails);
 router.delete('/:id', requireAuth, requireRestaurantOwnership, deleteRestaurant);
-router.get('/:id/menu-management', requireAuth, requireRestaurantOwnership, getRestaurantMenuManagement);
+router.get('/:id/menu-management', requireAuth, requireRestaurantOwnership, validate({ query: listMenuManagementQuerySchema }), getRestaurantMenuManagement);
 router.post('/:id/menu', requireAuth, requireRestaurantOwnership, validate({ body: createMenuItemSchema }), createMenuItem);
 router.get('/:id/orders', requireAuth, requireRestaurantOwnership, validate({ query: listOrdersQuerySchema }), listRestaurantOrders);
 
