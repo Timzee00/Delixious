@@ -69,6 +69,7 @@ export default function Home({ explore = false }) {
   const [foodPage, setFoodPage] = useState(1);
   const [foodTotal, setFoodTotal] = useState(0);
   const [foodLoadingMore, setFoodLoadingMore] = useState(false);
+  const [foodMoreError, setFoodMoreError] = useState('');
   const moreFoodsController = useRef(null);
   const [restaurants, setRestaurants] = useState([]);
   const [favoriteFoods, setFavoriteFoods] = useState([]);
@@ -99,6 +100,7 @@ export default function Home({ explore = false }) {
     setFoodLoadingMore(false);
     setFoodLoading(true);
     setFoodError('');
+    setFoodMoreError('');
     setFoodPage(1);
     setFoodTotal(0);
     api.get('/menu-items/feed', {
@@ -127,7 +129,7 @@ export default function Home({ explore = false }) {
     const controller = new AbortController();
     moreFoodsController.current = controller;
     setFoodLoadingMore(true);
-    setFoodError('');
+    setFoodMoreError('');
     try {
       const { data } = await api.get('/menu-items/feed', {
         params: {
@@ -145,7 +147,7 @@ export default function Home({ explore = false }) {
         setFoodTotal(Number(data.total || foodTotal));
       }
     } catch (err) {
-      if (err.code !== 'ERR_CANCELED') setFoodError(err.response?.data?.error || 'Could not load more dishes. Please retry.');
+      if (err.code !== 'ERR_CANCELED') setFoodMoreError(err.response?.data?.error || 'Could not load more dishes. Please retry.');
     } finally {
       if (moreFoodsController.current === controller) {
         moreFoodsController.current = null;
@@ -364,8 +366,9 @@ export default function Home({ explore = false }) {
             </div>
             {foods.length < foodTotal && <div className="mt-7 flex flex-col items-center gap-2">
               <p className="text-xs text-ink-soft">Showing {foods.length.toLocaleString()} of {foodTotal.toLocaleString()} dishes</p>
+              {foodMoreError && <p role="alert" className="text-sm text-danger">{foodMoreError}</p>}
               <button type="button" onClick={loadMoreFoods} disabled={foodLoadingMore} className="min-h-11 rounded-xl border border-pepper px-6 text-sm font-semibold text-pepper hover:bg-pepper/5 disabled:opacity-50">
-                {foodLoadingMore ? 'Loading dishes…' : 'Load more dishes'}
+                {foodLoadingMore ? 'Loading dishes…' : foodMoreError ? 'Retry loading dishes' : 'Load more dishes'}
               </button>
             </div>}
           </>
