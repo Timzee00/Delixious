@@ -61,9 +61,9 @@ export default function OrderHistory() {
       <div className="flex items-end justify-between gap-4"><div><p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-pepper">YOUR FOOD JOURNEY</p><h1 className="mt-1 font-display text-3xl font-bold tracking-tight text-ink">Your orders</h1><p className="mt-1 text-sm text-ink-soft">Follow every order from kitchen to doorstep.</p></div><div className="hidden sm:block"><SceneIllustration scene="delivery" className="h-24 w-32" /></div></div>
 
       <div className="mt-6">
-        {loading ? (
+        {loading && orders.length === 0 ? (
           <p className="text-center font-mono text-sm text-ink-soft">Loading...</p>
-        ) : error ? (
+        ) : error && orders.length === 0 ? (
           <ErrorState message={error} onRetry={() => setRetry(value => value + 1)} />
         ) : orders.length === 0 ? (
           <EmptyState illustration="orders" title="Your order history starts here" message="Your completed and current orders will appear here." />
