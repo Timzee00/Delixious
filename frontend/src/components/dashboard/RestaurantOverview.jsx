@@ -35,7 +35,7 @@ export default function RestaurantOverview({ restaurant, onOpenOrders, onOpenMen
     setError('');
     try {
       const [ordersRes, menuRes, availableRes] = await Promise.all([
-        api.get(`/restaurants/${restaurant.id}/orders`, { params: { page: 1, limit: 6, statuses: ACTIVE_STATUSES } }),
+        api.get(`/restaurants/${restaurant.id}/orders`, { params: { page: 1, limit: 6, statuses: ACTIVE_STATUSES, paid_only: 'true' } }),
         api.get(`/restaurants/${restaurant.id}/menu-management`, { params: { page: 1, limit: 1, availability: 'all' } }),
         api.get(`/restaurants/${restaurant.id}/menu-management`, { params: { page: 1, limit: 1, availability: 'available' } }),
       ]);
