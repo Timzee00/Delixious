@@ -62,6 +62,12 @@ const PATHS = {
   'banknote': <><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 9H5v1m13-1h1v1m-13 4H5v1m13-1h1v1"/></>,
   'chef-apron': <><path d="M8 4 12 2l4 2 4 5-3 2-2-2v10H9V9l-2 2-3-2 4-5Z"/><path d="M9 14h6"/></>,
   'route': <><circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><path d="M8 18h3a3 3 0 0 0 3-3V9a3 3 0 0 1 3-3"/></>,
+  plus: <path d="M12 5v14M5 12h14"/>,
+  minus: <path d="M5 12h14"/>,
+  pencil: <><path d="m14 5 5 5M4 20l4-.8L19 8a2.1 2.1 0 0 0-3-3L5 16l-1 4Z"/></>,
+  'trash-2': <><path d="M3 6h18M8 6V4h8v2m3 0-1 15H6L5 6m4 4v7m6-7v7"/></>,
+  'arrow-down-up': <><path d="m7 3-3 3 3 3M4 6h12m1 15 3-3-3-3m3 3H8"/></>,
+  'circle-dot': <><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/></>,
   'sparkles': <><path d="m12 3 1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3Z"/><path d="m19 16 .7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7L19 16ZM5 3l.5 1.5L7 5l-1.5.5L5 7l-.5-1.5L3 5l1.5-.5L5 3Z"/></>,
 };
 
