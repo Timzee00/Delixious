@@ -22,6 +22,7 @@ export default function Restaurants() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
   const [favoriteError, setFavoriteError] = useState('');
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,7 +66,7 @@ export default function Restaurants() {
       }
     }, 300);
     return () => { cancelled = true; controller.abort(); clearTimeout(timer); };
-  }, [query, cuisine, openOnly, page, isAuthenticated]);
+  }, [query, cuisine, openOnly, page, isAuthenticated, retry]);
 
   async function toggleFavorite(id) {
     if (!isAuthenticated) return;
@@ -99,7 +100,13 @@ export default function Restaurants() {
       </div>
       {favoriteError && <p role="status" className="mt-4 text-xs text-ink-soft">{favoriteError}</p>}
       <div className="mt-8">
-        {loading ? <GridSkeleton /> : error ? <ErrorState message={error} /> : restaurants.length ? <><div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">{restaurants.map((restaurant) => <RestaurantCard key={restaurant.id} restaurant={restaurant} isFavorite={favoriteIds.has(restaurant.id)} favoriteBusy={favoriteBusy.has(restaurant.id)} onToggleFavorite={isAuthenticated ? () => toggleFavorite(restaurant.id) : undefined} />)}</div>{hasMore && <button type="button" disabled={loadingMore} onClick={() => setPage((value) => value + 1)} className="mt-6 w-full rounded-lg border border-hairline py-3 text-sm font-semibold text-ink-soft hover:border-pepper hover:text-pepper disabled:opacity-60">{loadingMore ? 'Loading...' : 'Load more restaurants'}</button>}</> : <EmptyState message="No approved restaurants match your search yet." />}
+        {loading && !restaurants.length ? <GridSkeleton /> : error && !restaurants.length ? <ErrorState message={error} onRetry={() => setRetry(value => value + 1)} /> : restaurants.length ? (
+          <>
+            {error && <p role="alert" className="mb-4 rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">{error} <button type="button" onClick={() => setRetry(value => value + 1)} className="ml-1 font-semibold underline">Retry this page</button></p>}
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">{restaurants.map(restaurant => <RestaurantCard key={restaurant.id} restaurant={restaurant} isFavorite={favoriteIds.has(restaurant.id)} favoriteBusy={favoriteBusy.has(restaurant.id)} onToggleFavorite={isAuthenticated ? () => toggleFavorite(restaurant.id) : undefined}/>)}</div>
+            {hasMore && <button type="button" disabled={loadingMore} onClick={() => error ? setRetry(value => value + 1) : setPage(value => value + 1)} className="mt-6 w-full rounded-lg border border-hairline py-3 text-sm font-semibold text-ink-soft hover:border-pepper hover:text-pepper disabled:opacity-60">{loadingMore ? 'Loading...' : error ? 'Retry loading restaurants' : 'Load more restaurants'}</button>}
+          </>
+        ) : <EmptyState message="No approved restaurants match your search yet." />}
       </div>
     </div>
   );
