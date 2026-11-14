@@ -3,6 +3,23 @@ import { createSubaccount, createTransferRecipient } from '../utils/paystack.js'
 import { setAuthCookies, clearAuthCookies, ensureCsrfCookie } from '../utils/authCookies.js';
 import logger from '../utils/logger.js';
 
+
+function serializeProfile(profile) {
+  if (!profile) return profile;
+  const {
+    rider_bank_account_number,
+    rider_bank_account_name,
+    rider_paystack_subaccount_code,
+    rider_transfer_recipient_code,
+    ...safe
+  } = profile;
+  return {
+    ...safe,
+    rider_payout_account_connected: Boolean(rider_transfer_recipient_code),
+    rider_bank_account_last4: rider_bank_account_number ? rider_bank_account_number.slice(-4) : null,
+  };
+}
+
 export async function signup(req, res, next) {
   try {
     const { email, password, full_name, phone, role = 'customer' } = req.body;
@@ -77,7 +94,7 @@ export async function submitRiderBankDetails(req, res, next) {
       .single();
 
     if (error) return res.status(400).json({ error: error.message });
-    res.json({ message: 'Payout account connected.', profile: data });
+    res.json({ message: 'Payout account connected.', payout_account_connected: true, bank_account_last4: account_number.slice(-4) });
   } catch (err) {
     if (err.response?.data?.message) {
       return res.status(400).json({ error: err.response.data.message });
@@ -115,7 +132,7 @@ export async function login(req, res, next) {
     res.json({
       message: 'Logged in successfully.',
       user: { id: data.user.id, email: data.user.email },
-      profile,
+      profile: serializeProfile(profile),
       csrfToken,
     });
   } catch (err) {
@@ -200,7 +217,7 @@ export async function logout(req, res, next) {
 export async function getMe(req, res) {
   res.json({
     user: { id: req.user.id, email: req.user.email },
-    profile: req.profile,
+    profile: serializeProfile(req.profile),
     csrfToken: ensureCsrfCookie(req, res),
   });
 }
@@ -227,7 +244,7 @@ export async function updateProfile(req, res, next) {
       return res.status(400).json({ error: error.message });
     }
 
-    res.json({ message: 'Profile updated.', profile: data });
+    res.json({ message: 'Profile updated.', profile: serializeProfile(data) });
   } catch (err) {
     next(err);
   }
