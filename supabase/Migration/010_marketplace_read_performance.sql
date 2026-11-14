@@ -35,4 +35,14 @@ create index if not exists idx_notifications_user_created
 create index if not exists idx_restaurants_approved_rating
   on public.restaurants(rating_avg desc, id) where approval_status = 'approved';
 
+-- Restaurant menu manager pages sort/filter by restaurant, availability,
+-- category and name; saved-restaurants lists filter and sort by owner.
+-- Check existing indexes and EXPLAIN plans before adding to a live database.
+create index if not exists idx_menu_items_restaurant_category_name
+  on public.menu_items(restaurant_id, category, name, id);
+create index if not exists idx_menu_items_restaurant_availability_category_name
+  on public.menu_items(restaurant_id, is_available, category, name, id);
+create index if not exists idx_restaurant_favorites_user_created
+  on public.restaurant_favorites(user_id, created_at desc, restaurant_id);
+
 -- Safe to re-run. This file does not rewrite any rows or financial records.
