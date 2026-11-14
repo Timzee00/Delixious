@@ -51,10 +51,9 @@ export default function Dashboard() {
 
   function handleRestaurantCreated(created) {
     setRestaurantPage(1);
-    setRestaurants([created]);
     setActiveId(created.id);
-    setTotalRestaurants(value => value + 1);
     setTab('Overview');
+    setRetry(value => value + 1);
   }
 
   const activeRestaurant = restaurants.find(item => item.id === activeId) || null;
@@ -113,7 +112,7 @@ export default function Dashboard() {
         {activeRestaurant && tab === 'Overview' && <RestaurantOverview restaurant={activeRestaurant} onOpenOrders={() => setTab('Orders')} onOpenMenu={() => setTab('Menu')}/>}
         {activeRestaurant && tab === 'Orders' && <OrdersQueueSection restaurant={activeRestaurant}/>}
         {activeRestaurant && tab === 'Menu' && <MenuManagementSection restaurant={activeRestaurant}/>}
-        {activeRestaurant && tab === 'Profile' && <RestaurantProfileSection restaurant={activeRestaurant} onUpdated={handleRestaurantUpdated}/>}
+        {activeRestaurant && tab === 'Profile' && <RestaurantProfileSection key={activeRestaurant.id} restaurant={activeRestaurant} onUpdated={handleRestaurantUpdated}/>}
       </div>
     </div>
   );
