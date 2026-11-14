@@ -14,23 +14,36 @@ async function ensureApprovedRestaurant(restaurantId) {
 
 export async function listFavoriteRestaurants(req, res, next) {
   try {
-    const { data, error } = await supabaseAdmin
+    const { page = 1, limit = 12, restaurant_ids } = req.query;
+    const from = (page - 1) * limit;
+    let query = supabaseAdmin
       .from('restaurant_favorites')
-      .select(`restaurant_id, created_at, restaurants!inner(${PUBLIC_FIELDS}, approval_status)`)
+      .select(`restaurant_id, created_at, restaurants!inner(${PUBLIC_FIELDS}, approval_status)`, { count: 'exact' })
       .eq('user_id', req.user.id)
       .eq('restaurants.approval_status', 'approved')
-      .order('created_at', { ascending: false });
-    if (error) throw error;
+      .order('created_at', { ascending: false })
+      .order('restaurant_id', { ascending: true })
+      .range(from, from + limit - 1);
 
+    if (restaurant_ids) {
+      const ids = restaurant_ids.split(',').map(id => id.trim());
+      query = query.in('restaurant_id', ids);
+    }
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+    const favorites = (data || []).map(row => ({ ...row.restaurants, favorite_created_at: row.created_at }));
     res.json({
-      favorites: (data || []).map((row) => ({ ...row.restaurants, favorite_created_at: row.created_at })),
-      restaurant_ids: (data || []).map((row) => row.restaurant_id),
+      favorites,
+      restaurant_ids: (data || []).map(row => row.restaurant_id),
+      total: count || 0,
+      page,
+      limit,
     });
   } catch (err) {
     next(err);
   }
 }
-
 export async function addFavoriteRestaurant(req, res, next) {
   try {
     const { restaurantId } = req.params;
