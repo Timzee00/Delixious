@@ -332,7 +332,7 @@ export default function Home({ explore = false }) {
         </div>
       </section>}
 
-      <section aria-label="Food filters" className="mt-7 flex gap-2 overflow-x-auto pb-2">
+      <section aria-label="Food filters" className="mt-7 flex flex-wrap gap-2 pb-2">
         {chip(openOnly, 'Open now', () => setOpenOnly(v => !v))}
         {chip(maxPrice, 'Under ₦3,000', () => setMaxPrice(v => !v))}
         <Link to="/restaurants" className="inline-flex min-h-10 shrink-0 items-center rounded-full border border-hairline bg-paper px-4 py-2 text-xs font-semibold text-ink-soft hover:border-pepper hover:text-pepper sm:text-sm">Top rated kitchens</Link>
