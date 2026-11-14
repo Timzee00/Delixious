@@ -138,8 +138,8 @@ export default function OrderTrackingPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
-      <Link to="/orders" className="text-sm font-medium text-ink-soft hover:text-ink">
-        ← Back to orders
+      <Link to="/orders" className="inline-flex min-h-9 items-center gap-2 text-sm font-medium text-ink-soft hover:text-ink">
+        <Icon name="arrow-left" size={16}/> Back to orders
       </Link>
 
       <div className="ticket mt-4 p-6">
