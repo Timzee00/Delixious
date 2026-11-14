@@ -314,7 +314,7 @@ export async function cancelOrder(req, res, next) {
 
 export async function listRestaurantOrders(req, res, next) {
   try {
-    const { page, limit, statuses } = req.query;
+    const { page, limit, statuses, paid_only } = req.query;
     const from = (page - 1) * limit;
     let query = supabaseAdmin
       .from('orders')
@@ -324,6 +324,7 @@ export async function listRestaurantOrders(req, res, next) {
       .order('id', { ascending: true })
       .range(from, from + limit - 1);
     if (statuses) query = query.in('status', statuses.split(','));
+    if (paid_only === 'true') query = query.eq('payment_status', 'paid');
     const { data, error, count } = await query;
     if (error) throw error;
     res.json({ orders: data, total: count, page, limit });
