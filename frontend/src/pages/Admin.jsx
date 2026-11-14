@@ -20,7 +20,7 @@ const TABS = [
 
 const STATUSES = [
   { value: '', label: 'All statuses' },
-  { value: 'pending', label: 'Pending payment' },
+  { value: 'pending', label: 'Pending' },
   { value: 'confirmed', label: 'Confirmed' },
   { value: 'preparing', label: 'Preparing' },
   { value: 'out_for_delivery', label: 'Out for delivery' },
@@ -101,7 +101,7 @@ export default function Admin() {
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-9">
       <header className="overflow-hidden rounded-[26px] bg-ink px-5 py-6 text-white sm:px-8 sm:py-8">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <div><p className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-[#FFC5AA]">DElIXIOUS CONTROL ROOM</p><h1 className="mt-2 font-display text-3xl font-bold tracking-tight sm:text-4xl">Marketplace HQ</h1><p className="mt-2 max-w-xl text-sm leading-6 text-white/75">Partner approvals, user access, order oversight and platform communications.</p></div>
+          <div><p className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-[#FFC5AA]">DELIXIOUS CONTROL ROOM</p><h1 className="mt-2 font-display text-3xl font-bold tracking-tight sm:text-4xl">Marketplace HQ</h1><p className="mt-2 max-w-xl text-sm leading-6 text-white/75">Partner approvals, user access, order oversight and platform communications.</p></div>
           <div className="hidden sm:block"><SceneIllustration scene="success" className="h-28 w-40"/></div>
         </div>
       </header>
