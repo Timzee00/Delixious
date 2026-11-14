@@ -41,14 +41,14 @@ export default function Restaurants() {
         setRestaurants(current => first ? rows : [...current, ...rows]);
         setTotal(data.total || 0);
 
-        if (first && isAuthenticated && rows.length) {
+        if (isAuthenticated && rows.length) {
           try {
             const { data: favoriteData } = await api.get('/favorites/restaurants', {
               params: { restaurant_ids: rows.map(restaurant => restaurant.id).join(',') },
               signal: controller.signal,
             });
             if (!cancelled) {
-              setFavoriteIds(new Set(favoriteData.restaurant_ids || []));
+              setFavoriteIds(current => first ? new Set(favoriteData.restaurant_ids || []) : new Set([...current, ...(favoriteData.restaurant_ids || [])]));
               setFavoriteError('');
             }
           } catch (favoriteErr) {
@@ -91,10 +91,10 @@ export default function Restaurants() {
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <div><Link to="/" className="text-sm font-medium text-pepper hover:underline">Back to home</Link><h1 className="mt-2 font-display text-3xl font-bold text-ink">All restaurants</h1><p className="mt-1 max-w-2xl text-sm text-ink-soft">Find a restaurant by name, cuisine, or opening status.</p></div>
       <div className="ticket mt-6 p-4 sm:p-5">
-        <SearchField id="restaurant-search" label="Search restaurants" value={query} onChange={setQuery} placeholder="Search restaurants..." />
+        <SearchField id="restaurant-search" label="Search restaurants" value={query} onChange={value => { setQuery(value); setPage(1); }} placeholder="Search restaurants..." />
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          {CUISINES.map((item) => <button key={item} type="button" onClick={() => setCuisine(item)} className={`rounded-full border px-3 py-1.5 text-sm font-medium ${cuisine === item ? 'border-pepper bg-pepper/10 text-pepper' : 'border-hairline text-ink-soft hover:border-ink-soft'}`}>{item}</button>)}
-          <label className="ml-1 flex items-center gap-2 text-sm text-ink-soft"><input type="checkbox" checked={openOnly} onChange={(event) => setOpenOnly(event.target.checked)} className="accent-pepper" />Open now</label>
+          {CUISINES.map((item) => <button key={item} type="button" onClick={() => { setCuisine(item); setPage(1); }} className={`rounded-full border px-3 py-1.5 text-sm font-medium ${cuisine === item ? 'border-pepper bg-pepper/10 text-pepper' : 'border-hairline text-ink-soft hover:border-ink-soft'}`}>{item}</button>)}
+          <label className="ml-1 flex items-center gap-2 text-sm text-ink-soft"><input type="checkbox" checked={openOnly} onChange={(event) => { setOpenOnly(event.target.checked); setPage(1); }} className="accent-pepper" />Open now</label>
         </div>
       </div>
       {favoriteError && <p role="status" className="mt-4 text-xs text-ink-soft">{favoriteError}</p>}
