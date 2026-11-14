@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import api from '../../lib/api.js';
 
+const PAGE_SIZE = 20;
+
 function nextStatus(status) {
   return { assigned: 'picked_up', picked_up: 'en_route', en_route: 'delivered' }[status];
 }
@@ -11,23 +13,33 @@ function formatMoney(value) {
 
 export default function MyDeliveriesSection() {
   const [deliveries, setDeliveries] = useState([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [updating, setUpdating] = useState(null);
   const [error, setError] = useState('');
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (nextPage = 1, append = false) => {
+    if (append) setLoadingMore(true);
+    else setLoading(true);
     setError('');
     try {
-      const { data } = await api.get('/delivery/my-deliveries');
-      setDeliveries(data.deliveries || []);
+      const { data } = await api.get('/delivery/my-deliveries', {
+        params: { page: nextPage, limit: PAGE_SIZE },
+      });
+      setDeliveries(current => append ? [...current, ...(data.deliveries || [])] : (data.deliveries || []));
+      setTotal(data.total || 0);
+      setPage(nextPage);
     } catch (err) {
       setError(err.response?.data?.error || 'Unable to load your deliveries.');
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(1); }, [load]);
 
   async function advance(delivery) {
     const status = nextStatus(delivery.status);
@@ -36,7 +48,7 @@ export default function MyDeliveriesSection() {
     setError('');
     try {
       await api.patch(`/delivery/${delivery.order_id}/status`, { status });
-      await load();
+      await load(1);
     } catch (err) {
       setError(err.response?.data?.error || 'Unable to update delivery status.');
     } finally {
@@ -53,43 +65,49 @@ export default function MyDeliveriesSection() {
           <h2 className="text-lg font-semibold text-ink">My deliveries</h2>
           <p className="mt-1 text-sm text-ink-soft">Track active deliveries and move them through the delivery stages.</p>
         </div>
-        <button type="button" onClick={load} className="rounded-lg border border-hairline px-3 py-2 text-sm font-medium text-ink hover:bg-sand">Refresh</button>
+        <button type="button" onClick={() => load(1)} className="rounded-lg border border-hairline px-3 py-2 text-sm font-medium text-ink hover:bg-sand">Refresh</button>
       </div>
 
-      {error && <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {error && <p role="alert" className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
       {!deliveries.length && !error ? (
         <div className="mt-6 rounded-xl border border-hairline p-6 text-center text-sm text-ink-soft">You have no active deliveries.</div>
       ) : (
-        <div className="mt-6 space-y-4">
-          {deliveries.map((delivery) => {
-            const order = delivery.orders;
-            const next = nextStatus(delivery.status);
-            return (
-              <article key={delivery.order_id} className="rounded-xl border border-hairline bg-white p-5 shadow-sm">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Order #{String(order?.id || delivery.order_id).slice(0, 8)}</p>
-                    <h3 className="mt-1 font-semibold text-ink">{order?.restaurants?.name || 'Restaurant'}</h3>
+        <>
+          <div className="mt-6 space-y-4">
+            {deliveries.map((delivery) => {
+              const order = delivery.orders;
+              const next = nextStatus(delivery.status);
+              return (
+                <article key={delivery.order_id} className="rounded-xl border border-hairline bg-white p-5 shadow-sm">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Order #{String(order?.id || delivery.order_id).slice(0, 8)}</p>
+                      <h3 className="mt-1 font-semibold text-ink">{order?.restaurants?.name || 'Restaurant'}</h3>
+                    </div>
+                    <span className="rounded-full bg-sand px-3 py-1 text-xs font-semibold capitalize text-ink">{delivery.status?.replace(/_/g, ' ')}</span>
                   </div>
-                  <span className="rounded-full bg-sand px-3 py-1 text-xs font-semibold capitalize text-ink">{delivery.status?.replace(/_/g, ' ')}</span>
-                </div>
-                <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-                  <div className="rounded-lg bg-sand p-3"><span className="font-medium">Pickup:</span> {order?.restaurants?.address || 'Unavailable'}</div>
-                  <div className="rounded-lg bg-sand p-3"><span className="font-medium">Drop-off:</span> {order?.delivery_address || 'Unavailable'}</div>
-                </div>
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
-                  <span className="text-ink-soft">Payout: <strong className="text-ink">{formatMoney(order?.rider_payout_amount)}</strong></span>
-                  {next && (
-                    <button type="button" disabled={updating === delivery.order_id} onClick={() => advance(delivery)} className="rounded-lg bg-pepper px-4 py-2 font-semibold text-white disabled:opacity-60">
-                      {updating === delivery.order_id ? 'Updating...' : next === 'picked_up' ? 'Mark picked up' : next === 'en_route' ? 'Mark en route' : 'Mark delivered'}
-                    </button>
-                  )}
-                </div>
-              </article>
-            );
-          })}
-        </div>
+                  <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                    <div className="rounded-lg bg-sand p-3"><span className="font-medium">Pickup:</span> {order?.restaurants?.address || 'Unavailable'}</div>
+                    <div className="rounded-lg bg-sand p-3"><span className="font-medium">Drop-off:</span> {order?.delivery_address || 'Unavailable'}</div>
+                  </div>
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
+                    <span className="text-ink-soft">Payout: <strong className="text-ink">{formatMoney(order?.rider_payout_amount)}</strong></span>
+                    {next && (
+                      <button type="button" disabled={updating === delivery.order_id} onClick={() => advance(delivery)} className="rounded-lg bg-pepper px-4 py-2 font-semibold text-white disabled:opacity-60">
+                        {updating === delivery.order_id ? 'Updating...' : next === 'picked_up' ? 'Mark picked up' : next === 'en_route' ? 'Mark en route' : 'Mark delivered'}
+                      </button>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-hairline pt-4">
+            <p className="text-xs text-ink-soft">Showing {deliveries.length.toLocaleString()} of {total.toLocaleString()} active deliveries</p>
+            {deliveries.length < total && <button type="button" disabled={loadingMore} onClick={() => load(page + 1, true)} className="min-h-10 rounded-lg border border-hairline px-4 text-sm font-semibold text-ink hover:border-pepper disabled:opacity-50">{loadingMore ? 'Loading…' : 'Load more'}</button>}
+          </div>
+        </>
       )}
     </section>
   );
