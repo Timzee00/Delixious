@@ -49,7 +49,7 @@ export default function RestaurantDetail() {
       setLoadError('');
       try {
         const requests = [api.get(`/restaurants/${id}`)];
-        if (isAuthenticated) requests.push(api.get('/favorites/restaurants'));
+        if (isAuthenticated) requests.push(api.get('/favorites/restaurants', { params: { restaurant_ids: id } }));
         const [restaurantRes, favoriteRes] = await Promise.all(requests);
         if (!cancelled) {
           setRestaurant(restaurantRes.data.restaurant);
