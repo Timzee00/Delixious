@@ -7,7 +7,11 @@ const MANAGEMENT_FIELDS = `${PUBLIC_FIELDS}, approval_status`;
 function safeRestaurant(data) {
   if (!data) return data;
   const { bank_name, bank_account_number, bank_account_name, paystack_subaccount_code, owner_id, ...safe } = data;
-  return safe;
+  return { ...safe, payout_account_connected: Boolean(paystack_subaccount_code) };
+}
+
+function safeRestaurants(rows = []) {
+  return rows.map(safeRestaurant);
 }
 
 export async function listRestaurants(req, res, next) {
@@ -38,37 +42,37 @@ export async function getMyRestaurants(req, res, next) {
     const { page = 1, limit = 20 } = req.query;
     const from = (page - 1) * limit;
     const { data, error, count } = await supabaseAdmin.from('restaurants')
-      .select(MANAGEMENT_FIELDS, { count: 'exact' })
+      .select(`${MANAGEMENT_FIELDS}, paystack_subaccount_code`, { count: 'exact' })
       .eq('owner_id', req.user.id)
       .order('created_at', { ascending: false })
       .order('id', { ascending: true })
       .range(from, from + limit - 1);
     if (error) return res.status(400).json({ error: error.message });
-    res.json({ restaurants: data || [], total: count || 0, page, limit });
+    res.json({ restaurants: safeRestaurants(data || []), total: count || 0, page, limit });
   } catch (err) { next(err); }
 }
 
 export async function createRestaurant(req, res, next) {
   try {
-    const { data, error } = await supabaseAdmin.from('restaurants').insert({ ...req.body, owner_id: req.user.id }).select(MANAGEMENT_FIELDS).single();
+    const { data, error } = await supabaseAdmin.from('restaurants').insert({ ...req.body, owner_id: req.user.id }).select(`${MANAGEMENT_FIELDS}, paystack_subaccount_code`).single();
     if (error) return res.status(400).json({ error: error.message });
-    res.status(201).json({ message: 'Restaurant created.', restaurant: data });
+    res.status(201).json({ message: 'Restaurant created.', restaurant: safeRestaurant(data) });
   } catch (err) { next(err); }
 }
 
 export async function updateRestaurant(req, res, next) {
   try {
-    const { data, error } = await supabaseAdmin.from('restaurants').update(req.body).eq('id', req.restaurant.id).select(MANAGEMENT_FIELDS).single();
+    const { data, error } = await supabaseAdmin.from('restaurants').update(req.body).eq('id', req.restaurant.id).select(`${MANAGEMENT_FIELDS}, paystack_subaccount_code`).single();
     if (error) return res.status(400).json({ error: error.message });
-    res.json({ message: 'Restaurant updated.', restaurant: data });
+    res.json({ message: 'Restaurant updated.', restaurant: safeRestaurant(data) });
   } catch (err) { next(err); }
 }
 
 export async function toggleOpen(req, res, next) {
   try {
-    const { data, error } = await supabaseAdmin.from('restaurants').update({ is_open: !req.restaurant.is_open }).eq('id', req.restaurant.id).select(MANAGEMENT_FIELDS).single();
+    const { data, error } = await supabaseAdmin.from('restaurants').update({ is_open: !req.restaurant.is_open }).eq('id', req.restaurant.id).select(`${MANAGEMENT_FIELDS}, paystack_subaccount_code`).single();
     if (error) return res.status(400).json({ error: error.message });
-    res.json({ message: `Restaurant is now ${data.is_open ? 'open' : 'closed'}.`, restaurant: data });
+    res.json({ message: `Restaurant is now ${data.is_open ? 'open' : 'closed'}.`, restaurant: safeRestaurant(data) });
   } catch (err) { next(err); }
 }
 
@@ -85,9 +89,9 @@ export async function submitBankDetails(req, res, next) {
     const { bank_name, bank_code, account_number } = req.body;
     const paystackResponse = await createSubaccount({ businessName: req.restaurant.name, bankCode: bank_code, accountNumber: account_number, percentageCharge: 10 });
     if (!paystackResponse.status) return res.status(502).json({ error: 'Could not verify bank details with Paystack. Please check the details and try again.' });
-    const { data, error } = await supabaseAdmin.from('restaurants').update({ bank_name, bank_account_number: account_number, bank_account_name: paystackResponse.data.account_name, paystack_subaccount_code: paystackResponse.data.subaccount_code }).eq('id', req.restaurant.id).select(MANAGEMENT_FIELDS).single();
+    const { data, error } = await supabaseAdmin.from('restaurants').update({ bank_name, bank_account_number: account_number, bank_account_name: paystackResponse.data.account_name, paystack_subaccount_code: paystackResponse.data.subaccount_code }).eq('id', req.restaurant.id).select(`${MANAGEMENT_FIELDS}, paystack_subaccount_code`).single();
     if (error) return res.status(400).json({ error: error.message });
-    res.json({ message: 'Payout account connected.', restaurant: data });
+    res.json({ message: 'Payout account connected.', restaurant: safeRestaurant(data) });
   } catch (err) {
     if (err.response?.data?.message) return res.status(400).json({ error: err.response.data.message });
     next(err);
