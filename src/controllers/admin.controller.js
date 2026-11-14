@@ -128,16 +128,16 @@ export async function setUserSuspension(req, res, next) {
 
 export async function listOrdersAdmin(req, res, next) {
   try {
-    const { page, limit } = req.query;
+    const { page, limit, status } = req.query;
     const from = (page - 1) * limit;
-    const to = from + limit - 1;
-
-    const { data, error, count } = await supabaseAdmin
+    let query = supabaseAdmin
       .from('orders')
       .select('id, user_id, restaurant_id, status, total_amount, platform_commission, created_at', { count: 'exact' })
       .order('created_at', { ascending: false })
       .order('id', { ascending: true })
-      .range(from, to);
+      .range(from, from + limit - 1);
+    if (status) query = query.eq('status', status);
+    const { data, error, count } = await query;
 
     if (error) return res.status(400).json({ error: error.message });
     res.json({ orders: data, total: count, page, limit });
