@@ -5,11 +5,14 @@ import RestaurantCard from '../components/RestaurantCard.jsx';
 import { EmptyState, ErrorState, GridSkeleton } from '../components/StateViews.jsx';
 import PaginationControls from '../components/ui/PaginationControls.jsx';
 import SceneIllustration from '../components/ui/SceneIllustration.jsx';
+import { SearchField } from '../components/ui/Primitives.jsx';
 
 const PAGE_SIZE = 12;
 
 export default function Favorites() {
   const [restaurants, setRestaurants] = useState([]);
+  const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState('');
@@ -18,10 +21,15 @@ export default function Favorites() {
   const [busyId, setBusyId] = useState(null);
 
   useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 250);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+
+  useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError('');
-    api.get('/favorites/restaurants', { params: { page, limit: PAGE_SIZE } })
+    api.get('/favorites/restaurants', { params: { page, limit: PAGE_SIZE, ...(debouncedQuery ? { q: debouncedQuery } : {}) } })
       .then(({ data }) => {
         if (cancelled) return;
         setRestaurants(data.favorites || []);
@@ -32,7 +40,7 @@ export default function Favorites() {
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [page, retry]);
+  }, [page, debouncedQuery, retry]);
 
   async function remove(id) {
     if (busyId) return;
@@ -59,9 +67,14 @@ export default function Favorites() {
         <SceneIllustration scene="favorites" className="hidden h-24 w-32 sm:block"/>
       </header>
 
+      <div className="mt-6 max-w-xl">
+        <SearchField id="favorites-search" label="Search saved restaurants" value={query} onChange={value => { setQuery(value); setPage(1); }} placeholder="Find a saved restaurant…"/>
+      </div>
+
       <div className="mt-7">
-        {loading ? <GridSkeleton/> : error ? <ErrorState message={error} onRetry={() => setRetry(value => value + 1)}/> : !restaurants.length ? (
-          <EmptyState illustration="favorites" title="No favorites saved yet" message="Tap the heart on a restaurant to keep it close."/>
+        {error && restaurants.length > 0 && <p role="alert" className="mb-4 rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">{error}<button type="button" onClick={() => setRetry(value => value + 1)} className="ml-2 font-semibold underline">Retry</button></p>}
+        {loading && !restaurants.length ? <GridSkeleton/> : error && !restaurants.length ? <ErrorState message={error} onRetry={() => setRetry(value => value + 1)}/> : !restaurants.length ? (
+          <EmptyState illustration="favorites" title={debouncedQuery ? 'No saved kitchens match' : 'No favorites saved yet'} message={debouncedQuery ? 'Try another restaurant name.' : 'Tap the heart on a restaurant to keep it close.'}/>
         ) : (
           <>
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
