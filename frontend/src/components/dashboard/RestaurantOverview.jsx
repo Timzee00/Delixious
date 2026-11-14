@@ -59,7 +59,7 @@ export default function RestaurantOverview({ restaurant, onOpenOrders, onOpenMen
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-pepper">YOUR KITCHEN</p>
-          <h2 className="mt-1 font-display text-2xl font-bold tracking-tight text-ink">Today at {restaurant.name}</h2>
+          <h2 className="mt-1 font-display text-2xl font-bold tracking-tight text-ink">Kitchen at {restaurant.name}</h2>
           <p className="mt-1 text-sm text-ink-soft">A live snapshot from your current orders and menu records.</p>
         </div>
         <div className={`inline-flex min-h-10 items-center gap-2 rounded-full px-3 text-xs font-bold ${restaurant.is_open ? 'bg-jade-soft text-jade' : 'bg-sand text-ink-soft'}`}>
