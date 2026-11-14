@@ -82,7 +82,7 @@ function AdminOrdersSection() {
           {orders.map(order => (
             <article key={order.id} className="grid gap-2 border-b border-hairline px-4 py-4 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_160px_180px_130px] sm:items-center sm:gap-3">
               <div className="min-w-0"><p className="font-mono text-[11px] text-ink-soft">#{order.id.slice(0,8)}</p><span className={`mt-1 inline-flex w-fit rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ${STATUS_STYLES[order.status] || 'bg-sand text-ink-soft'}`}>{order.status.replace(/_/g,' ')}</span></div>
-              <span className="truncate text-sm text-ink-soft">Restaurant #{String(order.restaurant_id || '').slice(0,8) || '—'}</span>
+              <span className="truncate text-sm text-ink-soft">{order.restaurants?.name || "Restaurant unavailable"}</span>
               <span className="text-xs text-ink-soft">{new Date(order.created_at).toLocaleString()}</span>
               <span className="font-mono text-sm font-semibold text-ink sm:text-right">₦{Number(order.total_amount || 0).toLocaleString('en-NG')}</span>
             </article>
