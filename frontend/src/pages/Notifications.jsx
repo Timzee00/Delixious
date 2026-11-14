@@ -4,23 +4,29 @@ import api from '../lib/api.js';
 import { useNotifications } from '../context/NotificationsContext.jsx';
 import { EmptyState, ErrorState } from '../components/StateViews.jsx';
 import Icon from '../components/ui/Icon.jsx';
+import PaginationControls from '../components/ui/PaginationControls.jsx';
 
 const PAGE_SIZE = 20;
-// Above this many loaded notifications, switch to a virtualized (react-window)
-// list so the DOM only holds rows actually in view - real, unread users can
-// accumulate hundreds of these over time.
 const VIRTUALIZE_THRESHOLD = 50;
-const ROW_HEIGHT = 76;
+const ROW_HEIGHT = 88;
 
 const TYPE_LABELS = {
   order_update: 'Order update',
   payment: 'Payment',
   promo: 'Promo',
   general: 'Notification',
+  broadcast: 'Platform notice',
+};
+const TYPE_ICONS = {
+  order_update: 'receipt-text',
+  payment: 'credit-card',
+  promo: 'sparkles',
+  general: 'bell',
+  broadcast: 'bell',
 };
 
 export default function Notifications() {
-  const { refreshUnreadCount } = useNotifications();
+  const { refreshUnreadCount, unreadCount } = useNotifications();
   const [notifications, setNotifications] = useState([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -40,8 +46,9 @@ export default function Notifications() {
     setError('');
     try {
       const { data } = await api.get('/notifications', { params: { page: pageToLoad, limit: PAGE_SIZE } });
-      setNotifications((prev) => (append ? [...prev, ...data.notifications] : data.notifications));
-      setTotal(data.total);
+      const rows = data.notifications || [];
+      setNotifications(current => append ? [...current, ...rows] : rows);
+      setTotal(data.total || 0);
       setPage(pageToLoad);
     } catch (err) {
       setError(err.response?.data?.error || 'Could not load notifications.');
@@ -54,7 +61,7 @@ export default function Notifications() {
   async function markRead(id) {
     try {
       await api.patch(`/notifications/${id}/read`);
-      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
+      setNotifications(current => current.map(item => item.id === id ? { ...item, is_read: true } : item));
       refreshUnreadCount();
     } catch (err) {
       setError(err.response?.data?.error || 'Could not mark this notification as read.');
@@ -64,7 +71,7 @@ export default function Notifications() {
   async function markAllRead() {
     try {
       await api.patch('/notifications/read-all');
-      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+      setNotifications(current => current.map(item => ({ ...item, is_read: true })));
       refreshUnreadCount();
     } catch (err) {
       setError(err.response?.data?.error || 'Could not mark notifications as read.');
@@ -74,106 +81,77 @@ export default function Notifications() {
   async function remove(id) {
     try {
       await api.delete(`/notifications/${id}`);
-      setNotifications((prev) => prev.filter((n) => n.id !== id));
-      setTotal((t) => Math.max(0, t - 1));
+      setNotifications(current => current.filter(item => item.id !== id));
+      setTotal(value => Math.max(0, value - 1));
       refreshUnreadCount();
     } catch (err) {
       setError(err.response?.data?.error || 'Could not delete this notification.');
     }
   }
 
-  const hasUnread = notifications.some((n) => !n.is_read);
   const hasMore = notifications.length < total;
   const rowProps = { onRead: markRead, onRemove: remove };
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
-      <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl font-bold text-ink">Notifications</h1>
-        {hasUnread && (
-          <button onClick={markAllRead} className="text-sm font-medium text-pepper hover:underline">
-            Mark all as read
-          </button>
-        )}
+    <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-9">
+      <header className="flex items-end justify-between gap-4">
+        <div><p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-pepper">YOUR UPDATES</p><h1 className="mt-1 font-display text-3xl font-bold tracking-tight text-ink">Notifications</h1><p className="mt-1 text-sm text-ink-soft">Order progress and account activity.</p></div>
+        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-pepper/10 text-pepper"><Icon name="bell" size={23}/></div>
+      </header>
+
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-ink-soft">{unreadCount.toLocaleString()} unread</p>
+        {unreadCount > 0 && <button type="button" onClick={markAllRead} className="inline-flex min-h-9 items-center gap-2 text-sm font-semibold text-pepper hover:underline"><Icon name="check" size={15}/> Mark all as read</button>}
       </div>
 
-      <div className="mt-6">
-        {error && <div role="alert" className="mb-4 rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">{error}<button type="button" onClick={() => setRetry(value => value + 1)} className="ml-2 font-semibold underline">Retry</button></div>}
+      <div className="mt-4">
+        {error && notifications.length > 0 && <div role="alert" className="mb-4 rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">{error}<button type="button" onClick={() => setRetry(value => value + 1)} className="ml-2 font-semibold underline">Retry first page</button></div>}
         {loading ? (
-          <p className="text-center font-mono text-sm text-ink-soft">Loading...</p>
-        ) : error ? (
-          <ErrorState message={error} onRetry={() => setRetry(value => value + 1)} />
+          <div className="space-y-3" role="status" aria-label="Loading notifications">{[1,2,3].map(value => <div key={value} className="h-20 animate-pulse rounded-2xl bg-hairline"/>)}</div>
+        ) : error && notifications.length === 0 ? (
+          <ErrorState message={error} onRetry={() => setRetry(value => value + 1)}/>
         ) : notifications.length === 0 ? (
-          <EmptyState illustration="notifications" title="You are all caught up" message="Order progress and account updates will appear here." />
+          <EmptyState illustration="notifications" title="You are all caught up" message="Order progress and account updates will appear here."/>
         ) : notifications.length > VIRTUALIZE_THRESHOLD ? (
-          <List
-            height={Math.min(640, notifications.length * ROW_HEIGHT)}
-            itemCount={notifications.length}
-            itemSize={ROW_HEIGHT}
-            width="100%"
-          >
-            {({ index, style }) => (
-              <div style={style}>
-                <NotificationRow notification={notifications[index]} compact {...rowProps} />
-              </div>
-            )}
+          <List height={Math.min(640, notifications.length * ROW_HEIGHT)} itemCount={notifications.length} itemSize={ROW_HEIGHT} width="100%">
+            {({ index, style }) => <div style={style}><NotificationRow notification={notifications[index]} compact {...rowProps}/></div>}
           </List>
         ) : (
-          <div className="space-y-3">
-            {notifications.map((n) => (
-              <NotificationRow key={n.id} notification={n} {...rowProps} />
-            ))}
-          </div>
+          <div className="space-y-3">{notifications.map(item => <NotificationRow key={item.id} notification={item} {...rowProps}/>)}</div>
         )}
 
-        {hasMore && (
-          <button
-            onClick={() => load(page + 1, true)}
-            disabled={loadingMore}
-            className="mt-6 w-full rounded-lg border border-hairline py-2.5 text-sm font-medium text-ink-soft transition-colors hover:border-pepper hover:text-pepper disabled:opacity-60"
-          >
-            {loadingMore ? 'Loading...' : 'Load more'}
-          </button>
+        {hasMore && !loading && notifications.length > 0 && (
+          <div className="mt-5">
+            <p className="mb-2 text-center text-xs text-ink-soft">Showing {notifications.length.toLocaleString()} of {total.toLocaleString()}</p>
+            {error && <p role="alert" className="mb-2 text-center text-sm text-danger">{error}</p>}
+            <button type="button" onClick={() => load(page + 1, true)} disabled={loadingMore} className="min-h-11 w-full rounded-xl border border-hairline bg-paper text-sm font-semibold text-ink hover:border-pepper hover:text-pepper disabled:opacity-60">
+              {loadingMore ? 'Loading…' : error ? 'Retry loading more' : 'Load more notifications'}
+            </button>
+          </div>
         )}
       </div>
     </div>
   );
 }
 
-function NotificationRow({ notification: n, onRead, onRemove, compact = false }) {
+function NotificationRow({ notification: item, onRead, onRemove, compact = false }) {
   return (
-    <div
-      onClick={() => !n.is_read && onRead(n.id)}
-      onKeyDown={event => {
-        if (event.target !== event.currentTarget || n.is_read) return;
-        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onRead(n.id); }
-      }}
-      role={!n.is_read ? 'button' : undefined}
-      tabIndex={!n.is_read ? 0 : undefined}
-      aria-label={!n.is_read ? `Mark ${n.title} as read` : undefined}
-      className={`ticket flex items-start gap-3 p-4 ${!n.is_read ? 'cursor-pointer border-pepper/30' : ''} ${compact ? 'mb-3' : ''}`}
-    >
-      <div className="mt-1 w-2 shrink-0">{!n.is_read && <span className="block h-2 w-2 rounded-full bg-pepper" />}</div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-2">
-          <p className="font-mono text-[10px] uppercase tracking-wide text-ink-soft">
-            {TYPE_LABELS[n.type] || 'Notification'}
-          </p>
-          <span className="shrink-0 text-[11px] text-ink-soft/70">{new Date(n.created_at).toLocaleDateString()}</span>
-        </div>
-        <h4 className="mt-0.5 truncate font-display text-sm font-bold text-ink">{n.title}</h4>
-        {n.body && <p className={`mt-1 text-sm text-ink-soft ${compact ? 'truncate' : ''}`}>{n.body}</p>}
-      </div>
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onRemove(n.id);
-        }}
-        className="shrink-0 text-lg leading-none text-ink-soft/50 transition-colors hover:text-danger"
-        aria-label="Delete notification"
-      >
-        ×
+    <article className={`ticket flex min-h-[76px] items-start gap-3 p-3 sm:p-4 ${compact ? 'mb-3' : ''} ${!item.is_read ? 'border-pepper/25 bg-pepper/[0.025]' : ''}`}>
+      <span className={`mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl ${item.is_read ? 'bg-sand text-ink-soft' : 'bg-pepper/10 text-pepper'}`}>
+        <Icon name={TYPE_ICONS[item.type] || 'bell'} size={17}/>
+      </span>
+      <button type="button" disabled={item.is_read} onClick={() => onRead(item.id)} aria-label={item.is_read ? item.title : `Mark ${item.title} as read`}
+        className="min-w-0 flex-1 text-left disabled:cursor-default">
+        <span className="flex items-center justify-between gap-2">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-soft">{TYPE_LABELS[item.type] || 'Notification'}</span>
+          <span className="shrink-0 text-[11px] text-ink-soft/70">{new Date(item.created_at).toLocaleDateString()}</span>
+        </span>
+        <span className="mt-0.5 block truncate font-display text-sm font-bold text-ink">{item.title}</span>
+        {item.body && <span className={`mt-1 block text-sm leading-5 text-ink-soft ${compact ? 'truncate' : ''}`}>{item.body}</span>}
       </button>
-    </div>
+      <button type="button" onClick={() => onRemove(item.id)} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-ink-soft hover:bg-danger/10 hover:text-danger" aria-label={`Delete notification: ${item.title}`}>
+        <Icon name="x" size={16}/>
+      </button>
+    </article>
   );
 }
