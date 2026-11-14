@@ -59,6 +59,10 @@ export async function submitRiderBankDetails(req, res, next) {
   try {
     const { bank_name, bank_code, account_number } = req.body;
 
+    if (req.profile.rider_transfer_recipient_code || req.profile.rider_paystack_subaccount_code) {
+      return res.status(409).json({ error: 'A payout account is already recorded. Contact support to change it safely.' });
+    }
+
     const subaccountResponse = await createSubaccount({
       businessName: req.profile.full_name,
       bankCode: bank_code,
