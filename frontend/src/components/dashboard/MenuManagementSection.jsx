@@ -108,6 +108,8 @@ export default function MenuManagementSection({ restaurant }) {
     setRetry(value => value + 1);
     if (!editingItem) {
       setPage(1);
+      setCategory('');
+      setAvailability('all');
       setQuery(saved.name || '');
     }
   }
