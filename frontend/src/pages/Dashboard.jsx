@@ -14,7 +14,7 @@ const PAGE_SIZE = 20;
 const TABS = [
   { id: 'Overview', icon: 'chart-no-axes-column', label: 'Overview' },
   { id: 'Orders', icon: 'clipboard-list', label: 'Orders' },
-  { id: 'Menu', icon: 'utensils', label: 'Menu' },
+  { id: 'Menu', icon: 'utensils', label: 'Products' },
   { id: 'Profile', icon: 'settings', label: 'Settings' },
 ];
 
@@ -37,7 +37,7 @@ export default function Dashboard() {
       setTotalRestaurants(data.total || 0);
       setActiveId(current => (data.restaurants || []).some(item => item.id === current) ? current : data.restaurants?.[0]?.id || '');
     } catch (err) {
-      setError(err.response?.data?.error || 'Could not load your restaurants.');
+      setError(err.response?.data?.error || 'Could not load your food businesses.');
     } finally {
       setLoading(false);
     }
@@ -69,7 +69,7 @@ export default function Dashboard() {
   if (!restaurants.length && !loading) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
-        <div className="mb-5 text-center"><SceneIllustration scene="kitchen" className="mx-auto h-36 w-48"/><p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-pepper">RESTAURANT PARTNER</p><h1 className="mt-2 font-display text-3xl font-bold text-ink">Set up your kitchen</h1><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-ink-soft">Create your restaurant profile, add your menu and complete payout setup before accepting paid orders.</p></div>
+        <div className="mb-5 text-center"><SceneIllustration scene="kitchen" className="mx-auto h-36 w-48"/><p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-pepper">FOOD BUSINESS PARTNER</p><h1 className="mt-2 font-display text-3xl font-bold text-ink">Set up your food business</h1><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-ink-soft">Create your business profile, choose your business types, add products and complete payout setup before accepting paid orders.</p></div>
         {error && <p role="alert" className="mb-4 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
         <RestaurantProfileSection restaurant={null} onCreated={handleRestaurantCreated}/>
       </div>
@@ -92,7 +92,7 @@ export default function Dashboard() {
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-hairline bg-paper p-3 sm:p-4">
         <div className="min-w-0 flex-1">
-          <label htmlFor="restaurant-workspace-select" className="block text-[11px] font-semibold uppercase tracking-wider text-ink-soft">Selected restaurant</label>
+          <label htmlFor="restaurant-workspace-select" className="block text-[11px] font-semibold uppercase tracking-wider text-ink-soft">Selected food business</label>
           <select id="restaurant-workspace-select" value={activeId} onChange={event => setActiveId(event.target.value)} className="mt-1 min-h-10 w-full max-w-lg rounded-lg border border-hairline bg-paper px-3 text-sm font-semibold text-ink">
             {restaurants.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select>
