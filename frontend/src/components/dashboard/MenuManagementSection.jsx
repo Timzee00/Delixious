@@ -11,7 +11,7 @@ import { SearchField, Button } from '../ui/Primitives.jsx';
 import { EmptyState } from '../StateViews.jsx';
 import PaginationControls from '../ui/PaginationControls.jsx';
 
-const CATEGORIES = ['Starters', 'Main', 'Sides', 'Drinks', 'Desserts', 'Other'];
+const CATEGORIES = ['Starters', 'Main', 'Rice', 'Swallow', 'Soups', 'Grills', 'Sides', 'Bakery', 'Cakes', 'Pastries', 'Desserts', 'Parfait & yoghurt', 'Ice cream', 'Snacks & small chops', 'Drinks', 'Beverages', 'Other'];
 const PAGE_SIZE = 30;
 
 export default function MenuManagementSection({ restaurant }) {
@@ -55,7 +55,7 @@ export default function MenuManagementSection({ restaurant }) {
       setTotal(data.total || 0);
     }).catch(err => {
       if (!cancelled && err.code !== 'ERR_CANCELED') {
-        setError(err.response?.data?.error || 'Could not load your menu.');
+        setError(err.response?.data?.error || 'Could not load your products.');
       }
     }).finally(() => {
       if (!cancelled) setLoading(false);
@@ -77,7 +77,7 @@ export default function MenuManagementSection({ restaurant }) {
       }
       setNotice(data.message);
     } catch (err) {
-      setError(err.response?.data?.error || 'Could not update item availability.');
+      setError(err.response?.data?.error || 'Could not update product availability.');
     } finally {
       setBusyId(null);
     }
@@ -94,7 +94,7 @@ export default function MenuManagementSection({ restaurant }) {
       setTotal(value => Math.max(0, value - 1));
       if (!remaining.length && page > 1) setPage(value => value - 1);
     } catch (err) {
-      setError(err.response?.data?.error || 'Could not delete this menu item.');
+      setError(err.response?.data?.error || 'Could not delete this product.');
     } finally {
       setBusyId(null);
       setDeletingItem(null);
@@ -104,7 +104,7 @@ export default function MenuManagementSection({ restaurant }) {
   function handleSaved(saved) {
     setShowForm(false);
     setEditingItem(null);
-    setNotice(saved.id ? 'Menu item saved.' : 'Menu item saved.');
+    setNotice(saved.id ? 'Product saved.' : 'Product saved.');
     setRetry(value => value + 1);
     if (!editingItem) {
       setPage(1);
@@ -126,16 +126,16 @@ export default function MenuManagementSection({ restaurant }) {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-pepper">CATALOGUE</p>
-          <h2 className="mt-1 font-display text-2xl font-bold tracking-tight text-ink">Menu management</h2>
-          <p className="mt-1 text-sm text-ink-soft">Update dishes, prices and availability. Only this page of menu items is loaded.</p>
+          <h2 className="mt-1 font-display text-2xl font-bold tracking-tight text-ink">Product management</h2>
+          <p className="mt-1 text-sm text-ink-soft">Add or update products, prices, photos and availability. Only this page of products is loaded.</p>
         </div>
         <Button onClick={() => { setEditingItem(null); setShowForm(true); }}>
-          <Icon name="plus" size={17}/> Add dish
+          <Icon name="plus" size={17}/> Add product
         </Button>
       </div>
 
       <div className="grid gap-3 rounded-2xl border border-hairline bg-paper p-4 sm:grid-cols-[minmax(0,1fr)_180px_170px] sm:items-end">
-        <SearchField id="menu-management-search" value={query} onChange={value => { setQuery(value); setPage(1); }} label="Search menu items" placeholder="Search dish names…" />
+        <SearchField id="menu-management-search" value={query} onChange={value => { setQuery(value); setPage(1); }} label="Search products" placeholder="Search product names…" />
         <label className="block text-xs font-semibold text-ink-soft">Category
           <select value={category} onChange={event => { setCategory(event.target.value); setPage(1); }} className="mt-1.5 min-h-11 w-full rounded-xl border border-hairline bg-paper px-3 text-sm font-medium text-ink">
             <option value="">All categories</option>
@@ -156,17 +156,17 @@ export default function MenuManagementSection({ restaurant }) {
 
       <div className="overflow-hidden rounded-2xl border border-hairline bg-paper">
         <div className="hidden grid-cols-[minmax(0,1fr)_130px_130px_180px] gap-4 border-b border-hairline bg-sand/70 px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-ink-soft sm:grid">
-          <span>Dish</span><span>Price</span><span>Status</span><span className="text-right">Actions</span>
+          <span>Product</span><span>Price</span><span>Status</span><span className="text-right">Actions</span>
         </div>
         {loading ? (
-          <div className="space-y-3 p-5" aria-label="Loading menu items" role="status">
+          <div className="space-y-3 p-5" aria-label="Loading products" role="status">
             {[1, 2, 3, 4].map(item => <div key={item} className="flex items-center gap-3 animate-pulse"><div className="h-12 w-12 rounded-xl bg-hairline"/><div className="flex-1"><div className="h-3 w-1/3 rounded bg-hairline"/><div className="mt-2 h-2 w-1/5 rounded bg-hairline"/></div></div>)}
           </div>
         ) : !items.length ? (
           <div className="p-4 sm:p-8">
-            <EmptyState illustration="kitchen" title={total === 0 && !debouncedQuery && !category && availability === 'all' ? 'Your menu is ready to be filled' : 'No dishes match these filters'}
-              message={total === 0 && !debouncedQuery && !category && availability === 'all' ? 'Add your first dish so customers can see what your kitchen makes.' : 'Try a different search or clear the filters.'}
-              action={<Button variant="secondary" onClick={total === 0 && !debouncedQuery && !category && availability === 'all' ? () => setShowForm(true) : clearFilters}>{total === 0 && !debouncedQuery && !category && availability === 'all' ? 'Add your first dish' : 'Clear filters'}</Button>}
+            <EmptyState illustration="kitchen" title={total === 0 && !debouncedQuery && !category && availability === 'all' ? 'Your catalogue is ready to be filled' : 'No products match these filters'}
+              message={total === 0 && !debouncedQuery && !category && availability === 'all' ? 'Add your first product so customers can discover what your business sells.' : 'Try a different search or clear the filters.'}
+              action={<Button variant="secondary" onClick={total === 0 && !debouncedQuery && !category && availability === 'all' ? () => setShowForm(true) : clearFilters}>{total === 0 && !debouncedQuery && !category && availability === 'all' ? 'Add your first product' : 'Clear filters'}</Button>}
             />
           </div>
         ) : (
@@ -200,7 +200,7 @@ export default function MenuManagementSection({ restaurant }) {
 
       {!loading && <PaginationControls page={page} total={total} pageSize={PAGE_SIZE} onPageChange={setPage}/>}
       {showForm && <MenuItemForm restaurantId={restaurant.id} item={editingItem} onSaved={handleSaved} onCancel={() => { setShowForm(false); setEditingItem(null); }} />}
-      {deletingItem && <ConfirmModal title="Delete this dish?" message={`“${deletingItem.name}” will be removed from your menu.`} confirmLabel="Delete dish" onCancel={() => setDeletingItem(null)} onConfirm={handleDelete} />}
+      {deletingItem && <ConfirmModal title="Delete this product?" message={`“${deletingItem.name}” will be removed from your catalogue.`} confirmLabel="Delete product" onCancel={() => setDeletingItem(null)} onConfirm={handleDelete} />}
     </section>
   );
 }
@@ -213,13 +213,13 @@ function MenuItemForm({ restaurantId, item, onSaved, onCancel }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!form.name.trim() || form.price === '' || Number(form.price) < 0 || !Number.isFinite(Number(form.price))) { setError('Enter a dish name and a valid non-negative price.'); return; }
+    if (!form.name.trim() || form.price === '' || Number(form.price) < 0 || !Number.isFinite(Number(form.price))) { setError('Enter a product name and a valid non-negative price.'); return; }
     setSaving(true); setError('');
     try {
       const payload = { ...form, price: Number(form.price) };
       const { data } = isEdit ? await api.put(`/menu-items/${item.id}`, payload) : await api.post(`/restaurants/${restaurantId}/menu`, payload);
       onSaved(data.menu_item);
-    } catch (err) { setError(err.response?.data?.error || 'Could not save this dish.'); }
+    } catch (err) { setError(err.response?.data?.error || 'Could not save this product.'); }
     finally { setSaving(false); }
   }
 
@@ -227,10 +227,10 @@ function MenuItemForm({ restaurantId, item, onSaved, onCancel }) {
     <Modal onClose={onCancel} labelledBy="menu-item-form-title" className="max-h-[90vh] max-w-md overflow-y-auto">
       <form onSubmit={handleSubmit}>
         <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-pepper">{isEdit ? 'UPDATE YOUR CATALOGUE' : 'ADD TO YOUR CATALOGUE'}</p>
-        <h3 id="menu-item-form-title" className="mt-1 font-display text-xl font-bold text-ink">{isEdit ? 'Edit dish' : 'Add a dish'}</h3>
+        <h3 id="menu-item-form-title" className="mt-1 font-display text-xl font-bold text-ink">{isEdit ? 'Edit product' : 'Add a product'}</h3>
         <div className="mt-4 space-y-3">
-          <ImagePicker label="Dish image" url={form.image_url} category="menu" onUploaded={url => setForm(current => ({ ...current, image_url: url }))} size="h-36 w-full"/>
-          <FormField label="Dish name" value={form.name} onChange={value => setForm(current => ({ ...current, name: value }))} required />
+          <ImagePicker label="Product image" url={form.image_url} category="menu" onUploaded={url => setForm(current => ({ ...current, image_url: url }))} size="h-36 w-full"/>
+          <FormField label="Product name" value={form.name} onChange={value => setForm(current => ({ ...current, name: value }))} required />
           <FormField label="Price (₦)" type="number" value={form.price} onChange={value => setForm(current => ({ ...current, price: value }))} required />
           <label className="block text-sm font-medium text-ink">Category
             <select value={form.category} onChange={event => setForm(current => ({ ...current, category: event.target.value }))} className="mt-1 w-full rounded-xl border border-hairline bg-paper px-3 py-3 text-ink">
@@ -242,7 +242,7 @@ function MenuItemForm({ restaurantId, item, onSaved, onCancel }) {
         {error && <p role="alert" className="mt-4 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
         <div className="mt-5 flex flex-wrap justify-end gap-2">
           <Button variant="secondary" onClick={onCancel}>Cancel</Button>
-          <Button type="submit" busy={saving}> {isEdit ? 'Save changes' : 'Add dish'}</Button>
+          <Button type="submit" busy={saving}> {isEdit ? 'Save changes' : 'Add product'}</Button>
         </div>
       </form>
     </Modal>
