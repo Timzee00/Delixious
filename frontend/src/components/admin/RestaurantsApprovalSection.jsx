@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { adminApi } from '../../lib/adminApi.js';
 import PaginationControls from '../ui/PaginationControls.jsx';
+import { businessTypeLabel } from '../../data/businessTypes.js';
 
 const PAGE_SIZE = 20;
 const FILTERS = ['pending', 'approved', 'rejected', ''];
@@ -50,7 +51,7 @@ export default function RestaurantsApprovalSection() {
   return (
     <section>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div><h2 className="font-display text-xl font-bold text-ink">Restaurant applications</h2><p className="mt-1 text-sm text-ink-soft">Review partner status in manageable batches.</p></div>
+        <div><h2 className="font-display text-xl font-bold text-ink">Food business applications</h2><p className="mt-1 text-sm text-ink-soft">Review restaurants, bakeries, dessert shops and other food sellers.</p></div>
         <div className="flex flex-wrap gap-2">
           {FILTERS.map(status => <button key={status || 'all'} type="button" onClick={() => { setFilter(status); setPage(1); }}
             aria-pressed={filter === status}
@@ -69,7 +70,7 @@ export default function RestaurantsApprovalSection() {
               <div className="min-w-0 flex-1">
                 <p className="font-semibold text-ink">{r.name}</p>
                 <p className="mt-1 text-sm text-ink-soft">{r.address || 'Address not supplied'}</p>
-                <p className="mt-1 text-xs capitalize text-ink-soft">{r.cuisine_type || 'Cuisine not set'} · {r.approval_status}</p>
+                <p className="mt-1 text-xs capitalize text-ink-soft">{(r.business_types || ['restaurant']).map(businessTypeLabel).join(' · ')} · {r.approval_status}</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 {r.approval_status !== 'approved' && <button type="button" disabled={busyId === r.id} onClick={() => setApproval(r.id, 'approved')} className="min-h-10 rounded-lg bg-jade px-3 text-sm font-semibold text-white disabled:opacity-50">{busyId === r.id ? 'Saving…' : 'Approve'}</button>}
