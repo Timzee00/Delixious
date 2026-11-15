@@ -36,9 +36,9 @@ export default function RestaurantProfileSection({ restaurant, onCreated, onUpda
     if (!form.business_types.length || form.business_types.length > 3) { setError('Choose between one and three business types.'); return; }
     setSaving(true); setError(''); setMessage('');
     try {
-      if (isEdit) { const { data } = await api.put(`/restaurants/${restaurant.id}`, form); onUpdated(data.restaurant); setMessage('Restaurant details saved.'); }
-      else { const { data } = await api.post('/restaurants', form); onCreated(data.restaurant); setMessage('Restaurant created.'); }
-    } catch (err) { setError(err.response?.data?.error || 'Could not save your restaurant.'); }
+      if (isEdit) { const { data } = await api.put(`/restaurants/${restaurant.id}`, form); onUpdated(data.restaurant); setMessage('Business details saved.'); }
+      else { const { data } = await api.post('/restaurants', form); onCreated(data.restaurant); setMessage('Food business created.'); }
+    } catch (err) { setError(err.response?.data?.error || 'Could not save your food business.'); }
     finally { setSaving(false); }
   }
 
@@ -152,7 +152,7 @@ export default function RestaurantProfileSection({ restaurant, onCreated, onUpda
       <form onSubmit={handleSubmit} className="ticket p-5 sm:p-7">
         <div className="mb-6"><h2 className="font-display text-lg font-bold text-ink">Food business details</h2><p className="mt-1 text-sm text-ink-soft">This information helps customers discover your store and the products you sell.</p></div>
         <div className="grid gap-5 md:grid-cols-2">
-          <div className="md:col-span-2"><FormField label="Restaurant name" value={form.name} onChange={(v) => setForm({ ...form, name: v })} required /></div>
+          <div className="md:col-span-2"><FormField label="Business name" value={form.name} onChange={(v) => setForm({ ...form, name: v })} required /></div>
           <fieldset className="md:col-span-2">
             <legend className="mb-1 text-sm font-semibold text-ink">What does your business sell?</legend>
             <p className="mb-3 text-xs leading-5 text-ink-soft">Choose up to three. Your storefront will appear in every selected category, so customers can find all sides of your business.</p>
@@ -184,7 +184,7 @@ export default function RestaurantProfileSection({ restaurant, onCreated, onUpda
 
         {message && <p role="status" aria-live="polite" className="mt-5 rounded-lg bg-jade-soft px-3 py-2 text-sm text-jade">{message}</p>}
         {error && <p role="alert" aria-live="polite" className="mt-5 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
-        <button type="submit" disabled={saving} className="mt-6 w-full rounded-lg bg-pepper py-3 font-semibold text-white hover:bg-pepper-dark disabled:opacity-60">{saving ? 'Saving...' : isEdit ? 'Save restaurant details' : 'Create restaurant'}</button>
+        <button type="submit" disabled={saving} className="mt-6 w-full rounded-lg bg-pepper py-3 font-semibold text-white hover:bg-pepper-dark disabled:opacity-60">{saving ? 'Saving...' : isEdit ? 'Save business details' : 'Create food business'}</button>
       </form>
     </div>
   );
