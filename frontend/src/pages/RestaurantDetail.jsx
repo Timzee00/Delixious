@@ -156,8 +156,8 @@ export default function RestaurantDetail() {
     }
   }
 
-  if (loading) return <div className="mx-auto max-w-5xl px-4 py-16 text-center font-mono text-sm text-ink-soft">Loading restaurant…</div>;
-  if (loadError && !restaurant) return <div className="mx-auto max-w-3xl px-4 py-16 text-center"><SceneIllustration scene="unavailable" className="mx-auto h-28 w-40"/><p className="text-ink-soft">{loadError}</p><Link to="/restaurants" className="mt-4 inline-block text-sm font-semibold text-pepper hover:underline">Back to restaurants</Link></div>;
+  if (loading) return <div className="mx-auto max-w-5xl px-4 py-16 text-center font-mono text-sm text-ink-soft">Loading storefront…</div>;
+  if (loadError && !restaurant) return <div className="mx-auto max-w-3xl px-4 py-16 text-center"><SceneIllustration scene="unavailable" className="mx-auto h-28 w-40"/><p className="text-ink-soft">{loadError}</p><Link to="/restaurants" className="mt-4 inline-block text-sm font-semibold text-pepper hover:underline">Back to marketplace</Link></div>;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-9">
@@ -169,7 +169,7 @@ export default function RestaurantDetail() {
           <div className="absolute bottom-4 left-5 right-5 flex items-end justify-between gap-3 sm:bottom-5 sm:left-7 sm:right-7">
             <div className="flex min-w-0 items-center gap-3">
               {restaurant.logo_url && <img src={restaurant.logo_url} alt="" className="h-14 w-14 rounded-2xl border-2 border-white object-cover shadow-lg sm:h-16 sm:w-16"/>}
-              <div className="min-w-0"><h1 className="truncate font-display text-2xl font-bold text-white drop-shadow-sm sm:text-3xl">{restaurant.name}</h1><p className="mt-0.5 truncate text-xs font-medium text-white/90 sm:text-sm">{restaurant.cuisine_type || 'Restaurant'}</p></div>
+              <div className="min-w-0"><h1 className="truncate font-display text-2xl font-bold text-white drop-shadow-sm sm:text-3xl">{restaurant.name}</h1><p className="mt-0.5 truncate text-xs font-medium text-white/90 sm:text-sm">{restaurant.cuisine_type || (restaurant.business_types || []).map(businessTypeLabel).join(' · ') || 'Food business'}</p></div>
             </div>
             <span className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold ${restaurant.is_open ? 'bg-jade text-white' : 'bg-white/90 text-ink'}`}>{restaurant.is_open ? 'Open now' : 'Closed'}</span>
           </div>
@@ -181,27 +181,32 @@ export default function RestaurantDetail() {
           </div>
           <FavoriteButton active={isFavorite} onClick={toggleFavorite} disabled={!isAuthenticated || favoriteBusy}/>
         </div>
+        {(restaurant.business_types || []).length > 0 && <div className="flex flex-wrap gap-2 border-t border-hairline px-4 py-3 sm:px-7">{restaurant.business_types.map(type => <span key={type} className="rounded-full bg-[#FFF1E7] px-3 py-1.5 text-xs font-semibold text-pepper">{businessTypeLabel(type)}</span>)}</div>}
         {restaurant.description && <p className="border-t border-hairline px-4 py-4 text-sm leading-6 text-ink-soft sm:px-7">{restaurant.description}</p>}
       </section>
 
       {actionError && <p role="alert" className="mt-4 rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">{actionError}</p>}
-      {!restaurant.is_open && <p role="status" className="mt-4 rounded-xl border border-hairline bg-sand px-4 py-3 text-sm text-ink-soft">This kitchen is closed. You can browse the menu, but ordering is paused.</p>}
+      {!restaurant.is_open && <p role="status" className="mt-4 rounded-xl border border-hairline bg-sand px-4 py-3 text-sm text-ink-soft">This store is closed. You can browse its catalogue, but ordering is paused.</p>}
       {!isAuthenticated && <p className="mt-4 text-xs text-ink-soft">Sign in to save favorites and add dishes to your cart.</p>}
 
       <section className="mt-8">
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-          <div><p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-pepper">FROM THE KITCHEN</p><h2 className="mt-1 font-display text-2xl font-bold text-ink">The menu</h2></div>
-          <div className="w-full sm:w-72"><SearchField id="restaurant-menu-search" label="Search this menu" value={menuQuery} onChange={setMenuQuery} placeholder="Find a dish…"/></div>
+          <div><p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-pepper">FROM THIS STORE</p><h2 className="mt-1 font-display text-2xl font-bold text-ink">Products & menu</h2><p className="mt-1 text-xs text-ink-soft">Search the full catalogue without loading every item at once.</p></div>
+          <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-[minmax(220px,1fr)_180px]">
+            <SearchField id="restaurant-menu-search" label="Search this store" value={menuQuery} onChange={setMenuQuery} placeholder="Search products and menu…"/>
+            <label className="sr-only" htmlFor="store-product-sort">Sort products</label>
+            <select id="store-product-sort" value={menuSort} onChange={event => setMenuSort(event.target.value)} className="min-h-11 rounded-xl border border-hairline bg-paper px-3 text-sm text-ink focus:border-pepper focus:outline-none"><option value="newest">Recently added</option><option value="price_low">Price: low to high</option><option value="price_high">Price: high to low</option></select>
+          </div>
         </div>
         {menuError && <p role="alert" className="rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">{menuError}</p>}
         {menuLoading ? <div className="space-y-3">{[1,2,3].map(item => <div key={item} className="h-24 animate-pulse rounded-2xl bg-hairline"/>)}</div> : !menuItems.length ? (
-          <div className="rounded-2xl border border-hairline bg-paper p-4 sm:p-7"><SceneIllustration scene="kitchen" className="mx-auto h-32 w-44"/><h3 className="mt-2 text-center font-display text-lg font-bold text-ink">{debouncedQuery ? 'No dishes found' : 'Menu coming soon'}</h3><p className="mt-1 text-center text-sm text-ink-soft">{debouncedQuery ? 'Try another dish name.' : 'This restaurant has not listed any available dishes yet.'}</p></div>
+          <div className="rounded-2xl border border-hairline bg-paper p-4 sm:p-7"><SceneIllustration scene="kitchen" className="mx-auto h-32 w-44"/><h3 className="mt-2 text-center font-display text-lg font-bold text-ink">{debouncedQuery ? 'No dishes found' : 'Catalogue coming soon'}</h3><p className="mt-1 text-center text-sm text-ink-soft">{debouncedQuery ? 'Try another dish name.' : 'This food business has not listed any available products yet.'}</p></div>
         ) : (
           <>
             <div className="space-y-8">
               {Object.entries(grouped).map(([categoryName, items]) => <section key={categoryName}><h3 className="font-display text-lg font-bold text-ink">{categoryName}</h3><div className="mt-3 space-y-3">{items.map(item => <MenuItemRow key={item.id} item={item} status={itemStatus[item.id]} onAdd={() => handleAdd(item)} disabled={!restaurant.is_open}/>)}</div></section>)}
             </div>
-            {menuItems.length < menuTotal && <div className="mt-7 flex flex-col items-center gap-2"><p className="text-xs text-ink-soft">Showing {menuItems.length.toLocaleString()} of {menuTotal.toLocaleString()} dishes</p>{menuMoreError && <p role="alert" className="text-sm text-danger">{menuMoreError}</p>}<Button variant="secondary" busy={menuLoadingMore} onClick={loadMoreMenu}>{menuMoreError ? 'Retry loading menu' : 'Load more dishes'}</Button></div>}
+            {menuItems.length < menuTotal && <div className="mt-7 flex flex-col items-center gap-2"><p className="text-xs text-ink-soft">Showing {menuItems.length.toLocaleString()} of {menuTotal.toLocaleString()} products</p>{menuMoreError && <p role="alert" className="text-sm text-danger">{menuMoreError}</p>}<Button variant="secondary" busy={menuLoadingMore} onClick={loadMoreMenu}>{menuMoreError ? 'Retry loading products' : 'Load more products'}</Button></div>}
           </>
         )}
       </section>
