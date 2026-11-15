@@ -1,9 +1,11 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../../lib/api.js';
 import FormField from '../FormField.jsx';
 import ImagePicker from '../ImagePicker.jsx';
 import Icon from '../ui/Icon.jsx';
 import { Button, InlineStatus } from '../ui/Primitives.jsx';
+import { BUSINESS_TYPES } from '../../data/businessTypes.js';
 
 const CUISINES = ['Nigerian', 'Continental', 'Chinese', 'Fast Food', 'Grills', 'Seafood', 'Pastries', 'Other'];
 
@@ -13,6 +15,7 @@ export default function RestaurantProfileSection({ restaurant, onCreated, onUpda
     name: restaurant?.name || '',
     description: restaurant?.description || '',
     cuisine_type: restaurant?.cuisine_type || CUISINES[0],
+    business_types: Array.isArray(restaurant?.business_types) && restaurant.business_types.length ? restaurant.business_types : ['restaurant'],
     address: restaurant?.address || '',
     logo_url: restaurant?.logo_url || '',
     cover_image_url: restaurant?.cover_image_url || '',
@@ -25,16 +28,40 @@ export default function RestaurantProfileSection({ restaurant, onCreated, onUpda
   const [togglingOpen, setTogglingOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [copyMessage, setCopyMessage] = useState('');
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!form.name.trim() || !form.address.trim()) { setError('Restaurant name and address are required.'); return; }
+    if (!form.name.trim() || !form.address.trim()) { setError('Business name and address are required.'); return; }
+    if (!form.business_types.length || form.business_types.length > 3) { setError('Choose between one and three business types.'); return; }
     setSaving(true); setError(''); setMessage('');
     try {
       if (isEdit) { const { data } = await api.put(`/restaurants/${restaurant.id}`, form); onUpdated(data.restaurant); setMessage('Restaurant details saved.'); }
       else { const { data } = await api.post('/restaurants', form); onCreated(data.restaurant); setMessage('Restaurant created.'); }
     } catch (err) { setError(err.response?.data?.error || 'Could not save your restaurant.'); }
     finally { setSaving(false); }
+  }
+
+  function toggleBusinessType(value) {
+    setForm(current => {
+      const selected = current.business_types || [];
+      if (selected.includes(value)) {
+        return selected.length > 1 ? { ...current, business_types: selected.filter(item => item !== value) } : current;
+      }
+      if (selected.length >= 3) return current;
+      return { ...current, business_types: [...selected, value] };
+    });
+  }
+
+  async function copyStorefrontLink() {
+    if (!restaurant) return;
+    const url = window.location.origin + '/restaurants/' + (restaurant.slug || restaurant.id);
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopyMessage('Storefront link copied.');
+    } catch {
+      setCopyMessage(url);
+    }
   }
 
   async function handlePayoutSubmit(event) {
@@ -65,12 +92,31 @@ export default function RestaurantProfileSection({ restaurant, onCreated, onUpda
     <div className="space-y-6">
       {isEdit && (
         <section className="rounded-2xl border border-hairline bg-paper p-5 sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-pepper">Public storefront</p>
+              <h2 className="mt-1 font-display text-lg font-bold text-ink">Your customer link</h2>
+              <p className="mt-1 break-all text-xs text-ink-soft">{window.location.origin}/restaurants/{restaurant.slug || restaurant.id}</p>
+              {copyMessage && <p role="status" className="mt-1 text-xs font-semibold text-jade">{copyMessage}</p>}
+            </div>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <Link to={'/restaurants/' + (restaurant.slug || restaurant.id)} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-hairline px-3 text-sm font-semibold text-ink hover:border-pepper hover:text-pepper">
+                <Icon name="arrow-up-right" size={16}/> View store
+              </Link>
+              <Button type="button" variant="secondary" onClick={copyStorefrontLink}>Copy link</Button>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {isEdit && (
+        <section className="rounded-2xl border border-hairline bg-paper p-5 sm:p-6">
           <div className="flex items-start gap-3">
             <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${restaurant.payout_account_connected ? 'bg-jade-soft text-jade' : 'bg-sand text-ink'}`}>
               <Icon name={restaurant.payout_account_connected ? 'shield-check' : 'bank'} size={21}/>
             </span>
             <div className="min-w-0 flex-1">
-              <h2 className="font-display text-lg font-bold text-ink">Restaurant payout account</h2>
+              <h2 className="font-display text-lg font-bold text-ink">Business payout account</h2>
               <p className="mt-1 text-sm leading-6 text-ink-soft">Connect a business bank account through Paystack before accepting paid customer orders.</p>
             </div>
           </div>
@@ -104,9 +150,31 @@ export default function RestaurantProfileSection({ restaurant, onCreated, onUpda
       )}
 
       <form onSubmit={handleSubmit} className="ticket p-5 sm:p-7">
-        <div className="mb-6"><h2 className="font-display text-lg font-bold text-ink">Restaurant details</h2><p className="mt-1 text-sm text-ink-soft">This information helps customers find and recognize your restaurant.</p></div>
+        <div className="mb-6"><h2 className="font-display text-lg font-bold text-ink">Food business details</h2><p className="mt-1 text-sm text-ink-soft">This information helps customers discover your store and the products you sell.</p></div>
         <div className="grid gap-5 md:grid-cols-2">
           <div className="md:col-span-2"><FormField label="Restaurant name" value={form.name} onChange={(v) => setForm({ ...form, name: v })} required /></div>
+          <fieldset className="md:col-span-2">
+            <legend className="mb-1 text-sm font-semibold text-ink">What does your business sell?</legend>
+            <p className="mb-3 text-xs leading-5 text-ink-soft">Choose up to three. Your storefront will appear in every selected category, so customers can find all sides of your business.</p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {BUSINESS_TYPES.map(type => {
+                const selected = form.business_types.includes(type.value);
+                const locked = !selected && form.business_types.length >= 3;
+                return (
+                  <button key={type.value} type="button" aria-pressed={selected} disabled={locked}
+                    onClick={() => toggleBusinessType(type.value)}
+                    className={'flex min-h-12 items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-sm font-semibold transition ' +
+                      (selected ? 'border-pepper bg-pepper/5 text-pepper' : 'border-hairline bg-white text-ink-soft hover:border-pepper/50') +
+                      (locked ? ' cursor-not-allowed opacity-40' : '')}>
+                    <span className={'grid h-8 w-8 shrink-0 place-items-center rounded-lg ' + (selected ? 'bg-pepper text-white' : 'bg-sand text-ink-soft')}><Icon name={type.icon} size={17}/></span>
+                    <span className="min-w-0 flex-1">{type.label}</span>
+                    {selected && <Icon name="check" size={17}/>}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-xs font-medium text-ink-soft">{form.business_types.length} of 3 selected</p>
+          </fieldset>
           <div><span className="mb-1 block text-sm font-medium text-ink">Cuisine type</span><select value={form.cuisine_type} onChange={(e) => setForm({ ...form, cuisine_type: e.target.value })} className="w-full rounded-lg border border-hairline bg-paper px-3 py-2 text-ink focus:border-pepper">{CUISINES.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
           <div><FormField label="Address" value={form.address} onChange={(v) => setForm({ ...form, address: v })} required /></div>
           <div className="md:col-span-2"><FormField label="Description" as="textarea" rows={4} value={form.description} onChange={(v) => setForm({ ...form, description: v })} placeholder="Tell customers what makes your restaurant and food worth trying." /></div>
