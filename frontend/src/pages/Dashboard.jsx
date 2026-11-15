@@ -81,10 +81,13 @@ export default function Dashboard() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-pepper">PARTNER WORKSPACE</p>
-          <h1 className="mt-1 font-display text-3xl font-bold tracking-tight text-ink">Your kitchen</h1>
-          <p className="mt-1 text-sm text-ink-soft">Manage service, orders and your menu in one place.</p>
+          <h1 className="mt-1 font-display text-3xl font-bold tracking-tight text-ink">Your food business</h1>
+          <p className="mt-1 text-sm text-ink-soft">Manage your storefront, products, orders and payouts in one place.</p>
         </div>
-        <Link to="/wallet" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-hairline bg-paper px-4 text-sm font-semibold text-ink hover:border-pepper hover:text-pepper"><Icon name="wallet" size={17}/> Wallet</Link>
+        <div className="flex flex-wrap gap-2">
+          {activeRestaurant && activeRestaurant.approval_status === 'approved' && <Link to={'/restaurants/' + (activeRestaurant.slug || activeRestaurant.id)} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-pepper/30 bg-pepper/5 px-4 text-sm font-semibold text-pepper hover:bg-pepper/10"><Icon name="arrow-up-right" size={17}/> View public store</Link>}
+          <Link to="/wallet" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-hairline bg-paper px-4 text-sm font-semibold text-ink hover:border-pepper hover:text-pepper"><Icon name="wallet" size={17}/> Wallet</Link>
+        </div>
       </div>
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-hairline bg-paper p-3 sm:p-4">
