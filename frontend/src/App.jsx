@@ -11,6 +11,7 @@ const AccountHub = lazy(() => import('./pages/AccountHub.jsx'));
 const Restaurants = lazy(() => import('./pages/Restaurants.jsx'));
 const Favorites = lazy(() => import('./pages/Favorites.jsx'));
 const Login = lazy(() => import('./pages/Login.jsx'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword.jsx'));
 const Signup = lazy(() => import('./pages/Signup.jsx'));
 const RestaurantDetail = lazy(() => import('./pages/RestaurantDetail.jsx'));
 const Cart = lazy(() => import('./pages/Cart.jsx'));
@@ -45,6 +46,7 @@ export default function App() {
               <Route path="/restaurants" element={<Restaurants />} />
               <Route path="/restaurants/:id" element={<RestaurantDetail />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/about" element={<About />} />
               <Route path="/faq" element={<FAQ />} />
