@@ -58,16 +58,16 @@ export default function RestaurantOverview({ restaurant, onOpenOrders, onOpenMen
     <section className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-pepper">YOUR KITCHEN</p>
-          <h2 className="mt-1 font-display text-2xl font-bold tracking-tight text-ink">Kitchen at {restaurant.name}</h2>
-          <p className="mt-1 text-sm text-ink-soft">A live snapshot from your current orders and menu records.</p>
+          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-pepper">YOUR STOREFRONT</p>
+          <h2 className="mt-1 font-display text-2xl font-bold tracking-tight text-ink">Storefront at {restaurant.name}</h2>
+          <p className="mt-1 text-sm text-ink-soft">A live snapshot of your orders and product catalogue.</p>
         </div>
         <div className={`inline-flex min-h-10 items-center gap-2 rounded-full px-3 text-xs font-bold ${restaurant.is_open ? 'bg-jade-soft text-jade' : 'bg-sand text-ink-soft'}`}>
           <span className={`h-2 w-2 rounded-full ${restaurant.is_open ? 'bg-jade' : 'bg-ink-soft'}`}/>{restaurant.is_open ? 'Accepting orders' : 'Not accepting orders'}
         </div>
       </div>
 
-      {restaurant.approval_status !== 'approved' && <InlineStatus tone="warning">Your restaurant is {restaurant.approval_status || 'awaiting review'}. Customer ordering becomes available after approval and payout setup.</InlineStatus>}
+      {restaurant.approval_status !== 'approved' && <InlineStatus tone="warning">Your food business is {restaurant.approval_status || 'awaiting review'}. Customer ordering becomes available after approval and payout setup.</InlineStatus>}
       {error && <div role="alert" className="rounded-xl border border-danger/20 bg-danger/10 p-4 text-sm text-danger">{error}<button type="button" onClick={() => setRetry(v => v + 1)} className="ml-2 font-semibold underline">Retry</button></div>}
 
       {loading ? (
@@ -78,8 +78,8 @@ export default function RestaurantOverview({ restaurant, onOpenOrders, onOpenMen
         <>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Stat icon="clipboard-list" label="Active orders" value={summary.activeOrders.toLocaleString()} detail="Awaiting preparation or delivery" tone={summary.activeOrders ? 'warning' : 'neutral'}/>
-            <Stat icon="utensils" label="Menu dishes" value={summary.menuItems.toLocaleString()} detail="All listed menu items"/>
-            <Stat icon="circle-check" label="Available dishes" value={summary.availableItems.toLocaleString()} detail="Currently marked available" tone="success"/>
+            <Stat icon="utensils" label="Products" value={summary.menuItems.toLocaleString()} detail="All listed products"/>
+            <Stat icon="circle-check" label="Available products" value={summary.availableItems.toLocaleString()} detail="Currently available to order" tone="success"/>
             <Stat icon="store-front" label="Storefront" value={restaurant.is_open ? 'Open' : 'Closed'} detail={restaurant.approval_status === 'approved' ? 'Marketplace approval status' : 'Approval required'} tone={restaurant.is_open ? 'success' : 'neutral'}/>
           </div>
 
@@ -102,10 +102,10 @@ export default function RestaurantOverview({ restaurant, onOpenOrders, onOpenMen
             <section className="flex flex-col justify-between rounded-2xl border border-hairline bg-paper p-5">
               <div>
                 <span className="grid h-11 w-11 place-items-center rounded-xl bg-pepper/10 text-pepper"><Icon name="chef-hat" size={22}/></span>
-                <h3 className="mt-4 font-display text-lg font-bold text-ink">Keep your menu fresh</h3>
-                <p className="mt-2 text-sm leading-6 text-ink-soft">Update dish photos, prices and availability so customers see accurate choices.</p>
+                <h3 className="mt-4 font-display text-lg font-bold text-ink">Keep your catalogue current</h3>
+                <p className="mt-2 text-sm leading-6 text-ink-soft">Update product photos, prices and availability so customers see accurate choices.</p>
               </div>
-              <Button variant="secondary" className="mt-5 w-full" onClick={onOpenMenu}>Manage menu <Icon name="arrow-right" size={16}/></Button>
+              <Button variant="secondary" className="mt-5 w-full" onClick={onOpenMenu}>Manage products <Icon name="arrow-right" size={16}/></Button>
             </section>
           </div>
         </>
