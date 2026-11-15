@@ -39,17 +39,16 @@ function CategoryCircle({ category, food, active, onChoose }) {
   return (
     <button type="button" onClick={() => onChoose(category.search)}
       aria-pressed={active}
-      className="group flex min-w-0 flex-col items-center gap-2 rounded-2xl px-1 py-2 text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pepper">
-      <span className={'flex aspect-square w-full max-w-[112px] items-center justify-center overflow-hidden rounded-full border-2 bg-paper shadow-sm transition-colors ' + (active ? 'border-pepper' : 'border-hairline group-hover:border-pepper/60')}>
+      className={'group flex w-full min-w-0 flex-col items-center gap-2 rounded-[22px] border p-2.5 text-center transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pepper sm:p-3 ' +
+        (active ? 'border-pepper bg-pepper text-white shadow-md shadow-pepper/15' : 'border-[#F3E7DE] bg-white text-ink hover:border-pepper/40 hover:shadow-sm')}>
+      <span className="flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-[16px] bg-[#FFF0E6]">
         {food?.image_url ? (
           <img src={food.image_url} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
         ) : (
-          <span className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#FFE9CF] to-[#F5C4A3] text-pepper">
-            <Icon name={category.icon} size={32} />
-          </span>
+          <span className="flex h-full w-full items-center justify-center text-pepper"><Icon name={category.icon} size={31}/></span>
         )}
       </span>
-      <span className="text-xs font-semibold text-ink sm:text-sm">{category.name}</span>
+      <span className="text-xs font-semibold leading-tight sm:text-sm">{category.name}</span>
     </button>
   );
 }
