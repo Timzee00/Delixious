@@ -6,6 +6,8 @@ import { formatNaira } from '../lib/format.js';
 import { getDeliveryAddress, saveDeliveryAddress } from '../lib/deliveryAddress.js';
 import SceneIllustration from '../components/ui/SceneIllustration.jsx';
 
+const DELIVERY_FEE = 500;
+
 export default function Checkout() {
   const { cart, cartError, refreshCart } = useCart();
   const [address, setAddress] = useState(getDeliveryAddress);
@@ -135,14 +137,14 @@ export default function Checkout() {
             <span className="font-mono font-semibold text-ink">{formatNaira(cart.subtotal)}</span>
           </div>
           <div className="mt-3 flex items-center justify-between text-sm">
-            <span className="text-ink-soft">Delivery</span>
-            <span className="font-semibold text-jade">Covered by restaurant</span>
+            <span className="text-ink-soft">Delivery fee</span>
+            <span className="font-mono font-semibold text-ink">{formatNaira(DELIVERY_FEE)}</span>
           </div>
           <div className="mt-3 flex items-center justify-between border-t border-hairline pt-3">
             <span className="font-semibold text-ink">Total to pay</span>
-            <span className="font-display text-xl font-bold text-ink">{formatNaira(cart.subtotal)}</span>
+            <span className="font-display text-xl font-bold text-ink">{formatNaira(Number(cart.subtotal || 0) + DELIVERY_FEE)}</span>
           </div>
-          <p className="mt-2 text-xs text-ink-soft">Restaurant commissions and delivery costs are deducted from restaurant earnings, not added to your food total.</p>
+          <p className="mt-2 text-xs leading-5 text-ink-soft">The delivery fee is paid by the customer and reserved for the rider. It is not deducted from the restaurant’s food earnings. The restaurant’s food commission is calculated separately.</p>
         </div>
       </div>
 
