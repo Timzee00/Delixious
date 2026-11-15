@@ -45,9 +45,9 @@ ALTER TABLE public.restaurants
       'catering',
       'grocery_foods'
     ]::text[]
-    AND business_types[1] IS DISTINCT FROM business_types[2]
-    AND business_types[1] IS DISTINCT FROM business_types[3]
-    AND business_types[2] IS DISTINCT FROM business_types[3]
+    AND (cardinality(business_types) < 2 OR business_types[1] <> business_types[2])
+    AND (cardinality(business_types) < 3 OR business_types[1] <> business_types[3])
+    AND (cardinality(business_types) < 3 OR business_types[2] <> business_types[3])
   ),
   ADD CONSTRAINT restaurants_slug_format CHECK (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$');
 
