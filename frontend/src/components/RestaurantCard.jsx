@@ -2,12 +2,15 @@ import { Link } from 'react-router-dom';
 import Img from './Img.jsx';
 import Icon from './ui/Icon.jsx';
 import FavoriteButton from './FavoriteButton.jsx';
+import { businessTypeLabel } from '../data/businessTypes.js';
 
 export default function RestaurantCard({ restaurant, isFavorite = false, onToggleFavorite, favoriteBusy = false }) {
+  const storePath = '/restaurants/' + (restaurant.slug || restaurant.id);
+  const types = (restaurant.business_types || ['restaurant']).slice(0, 3);
   return (
     <article className="group h-full overflow-hidden rounded-2xl border border-hairline bg-paper transition-all hover:border-pepper/30 hover:shadow-[0_14px_36px_rgba(36,21,18,0.08)]">
       <div className="relative">
-        <Link to={'/restaurants/' + restaurant.id} className="block overflow-hidden">
+        <Link to={storePath} className="block overflow-hidden">
           <Img src={restaurant.cover_image_url || restaurant.logo_url} alt={restaurant.name}
             fallbackText={restaurant.name?.[0]}
             frameClassName="aspect-[16/9] w-full overflow-hidden bg-[#F1E6D9]"
@@ -29,7 +32,8 @@ export default function RestaurantCard({ restaurant, isFavorite = false, onToggl
             {Number(restaurant.rating_avg).toFixed(1)}
           </span>}
         </div>
-        {restaurant.cuisine_type && <p className="mt-1 truncate text-sm text-ink-soft">{restaurant.cuisine_type}</p>}
+        <div className="mt-2 flex flex-wrap gap-1.5">{types.map(type => <span key={type} className="rounded-full bg-[#FFF1E7] px-2.5 py-1 text-[10px] font-semibold text-pepper">{businessTypeLabel(type)}</span>)}</div>
+        {restaurant.cuisine_type && <p className="mt-2 truncate text-xs text-ink-soft">{restaurant.cuisine_type}</p>}
         {restaurant.address && <p className="mt-2 flex items-center gap-1 truncate text-xs text-ink-soft">
           <Icon name="map-pin" size={13} className="shrink-0"/>
           <span className="truncate">{restaurant.address}</span>
