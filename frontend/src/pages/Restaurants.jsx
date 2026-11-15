@@ -1,17 +1,20 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import api from '../lib/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import RestaurantCard from '../components/RestaurantCard.jsx';
 import { GridSkeleton, EmptyState, ErrorState } from '../components/StateViews.jsx';
 import { SearchField } from '../components/ui/Primitives.jsx';
+import { BUSINESS_TYPES } from '../data/businessTypes.js';
 
 const CUISINES = ['All', 'Nigerian', 'Continental', 'Chinese', 'Fast Food', 'Grills', 'Seafood', 'Pastries'];
 
 export default function Restaurants() {
   const { isAuthenticated } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState('');
   const [cuisine, setCuisine] = useState('All');
+  const [businessType, setBusinessType] = useState(() => searchParams.get('business_type') || 'All');
   const [openOnly, setOpenOnly] = useState(false);
   const [restaurants, setRestaurants] = useState([]);
   const [favoriteIds, setFavoriteIds] = useState(new Set());
@@ -35,6 +38,7 @@ export default function Restaurants() {
         const params = { page, limit: 12 };
         if (query.trim()) params.search = query.trim();
         if (cuisine !== 'All') params.cuisine = cuisine;
+        if (businessType !== 'All') params.business_type = businessType;
         if (openOnly) params.is_open = true;
         const { data } = await api.get('/restaurants', { params, signal: controller.signal });
         if (cancelled) return;
@@ -66,7 +70,7 @@ export default function Restaurants() {
       }
     }, 300);
     return () => { cancelled = true; controller.abort(); clearTimeout(timer); };
-  }, [query, cuisine, openOnly, page, isAuthenticated, retry]);
+  }, [query, cuisine, businessType, openOnly, page, isAuthenticated, retry]);
 
   async function toggleFavorite(id) {
     if (!isAuthenticated) return;
@@ -88,11 +92,27 @@ export default function Restaurants() {
 
   const hasMore = restaurants.length < total;
 
+  function chooseBusinessType(value) {
+    setBusinessType(value);
+    setPage(1);
+    const next = new URLSearchParams(searchParams);
+    if (value === 'All') next.delete('business_type');
+    else next.set('business_type', value);
+    setSearchParams(next);
+  }
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-      <div><Link to="/" className="text-sm font-medium text-pepper hover:underline">Back to home</Link><h1 className="mt-2 font-display text-3xl font-bold text-ink">All restaurants</h1><p className="mt-1 max-w-2xl text-sm text-ink-soft">Find a restaurant by name, cuisine, or opening status.</p></div>
+      <div><Link to="/" className="text-sm font-medium text-pepper hover:underline">Back to home</Link><h1 className="mt-2 font-display text-3xl font-bold text-ink">Explore food businesses</h1><p className="mt-1 max-w-2xl text-sm text-ink-soft">Find restaurants, bakeries, dessert makers, snack vendors and more. A seller can appear in more than one category.</p></div>
       <div className="ticket mt-6 p-4 sm:p-5">
-        <SearchField id="restaurant-search" label="Search restaurants" value={query} onChange={value => { setQuery(value); setPage(1); }} placeholder="Search restaurants..." />
+        <SearchField id="restaurant-search" label="Search food businesses" value={query} onChange={value => { setQuery(value); setPage(1); }} placeholder="Search food businesses..." />
+        <div className="mt-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-ink-soft">Business category</p>
+          <div className="no-scrollbar flex snap-x gap-2 overflow-x-auto pb-1">
+            <button type="button" onClick={() => chooseBusinessType('All')} aria-pressed={businessType === 'All'} className={'shrink-0 rounded-full border px-3 py-2 text-xs font-semibold ' + (businessType === 'All' ? 'border-pepper bg-pepper text-white' : 'border-hairline text-ink-soft hover:border-pepper')}>All businesses</button>
+            {BUSINESS_TYPES.map(type => <button key={type.value} type="button" onClick={() => chooseBusinessType(type.value)} aria-pressed={businessType === type.value} className={'shrink-0 rounded-full border px-3 py-2 text-xs font-semibold ' + (businessType === type.value ? 'border-pepper bg-pepper text-white' : 'border-hairline text-ink-soft hover:border-pepper')}>{type.label}</button>)}
+          </div>
+        </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {CUISINES.map((item) => <button key={item} type="button" onClick={() => { setCuisine(item); setPage(1); }} className={`rounded-full border px-3 py-1.5 text-sm font-medium ${cuisine === item ? 'border-pepper bg-pepper/10 text-pepper' : 'border-hairline text-ink-soft hover:border-ink-soft'}`}>{item}</button>)}
           <label className="ml-1 flex items-center gap-2 text-sm text-ink-soft"><input type="checkbox" checked={openOnly} onChange={(event) => { setOpenOnly(event.target.checked); setPage(1); }} className="accent-pepper" />Open now</label>
@@ -106,7 +126,7 @@ export default function Restaurants() {
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">{restaurants.map(restaurant => <RestaurantCard key={restaurant.id} restaurant={restaurant} isFavorite={favoriteIds.has(restaurant.id)} favoriteBusy={favoriteBusy.has(restaurant.id)} onToggleFavorite={isAuthenticated ? () => toggleFavorite(restaurant.id) : undefined}/>)}</div>
             {hasMore && <button type="button" disabled={loadingMore} onClick={() => error ? setRetry(value => value + 1) : setPage(value => value + 1)} className="mt-6 w-full rounded-lg border border-hairline py-3 text-sm font-semibold text-ink-soft hover:border-pepper hover:text-pepper disabled:opacity-60">{loadingMore ? 'Loading...' : error ? 'Retry loading restaurants' : 'Load more restaurants'}</button>}
           </>
-        ) : <EmptyState message="No approved restaurants match your search yet." />}
+        ) : <EmptyState message="No approved food businesses match your search yet." />}
       </div>
     </div>
   );
