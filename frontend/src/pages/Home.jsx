@@ -324,6 +324,18 @@ export default function Home({ explore = false }) {
         </Link>
       )}
 
+      <section id="discover" className="mb-5 flex scroll-mt-24 items-center gap-2 sm:mb-6 sm:gap-3">
+        <SearchField id="discover-dishes" label="Search dishes or ingredients" value={query} onChange={setQuery}
+          placeholder="Search for meals, restaurants..." className="min-w-0 flex-1" />
+        <button type="button" onClick={openFilterPanel} aria-haspopup="dialog" aria-expanded={filtersOpen}
+          className="relative inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-hairline bg-paper px-3.5 text-sm font-semibold text-ink shadow-sm transition hover:border-pepper hover:text-pepper sm:min-h-12 sm:px-5">
+          <Icon name="filter" size={18}/><span>Filter</span>
+          {activeFilterCount > 0 && <span className="absolute -right-1.5 -top-1.5 grid h-5 min-w-5 place-items-center rounded-full bg-pepper px-1 text-[10px] font-bold text-white">{activeFilterCount}</span>}
+        </button>
+      </section>
+      {!explore && (
+        <div className="mb-5 text-xs text-ink-soft">Searches current restaurant menus. Delivery availability is confirmed at checkout.</div>
+      )}
       {!explore && (
         <section className="relative isolate overflow-hidden rounded-[28px] bg-pepper text-white sm:rounded-[36px]">
           <div className="pointer-events-none absolute -right-12 -top-28 h-72 w-72 rounded-full border-[38px] border-white/10 sm:h-[440px] sm:w-[440px]"/>
@@ -360,37 +372,23 @@ export default function Home({ explore = false }) {
         </section>
       )}
 
-      <section id="discover" className={(explore ? 'pt-4 ' : 'pt-7 ') + 'scroll-mt-28'}>
-        {explore ? (
-          <div className="mb-5">
-            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-pepper">EXPLORE FOOD</p>
-            <h1 className="mt-1 font-display text-3xl font-bold text-ink sm:text-4xl">Find something delicious</h1>
-          </div>
-        ) : <h2 className="mb-4 font-display text-xl font-bold text-ink">Find your next meal</h2>}
-        <SearchField id="discover-dishes" label="Search dishes or ingredients" value={query} onChange={setQuery}
-          placeholder="Search jollof rice, shawarma, restaurants..." className="max-w-3xl" />
-        <p className="mt-2 text-xs text-ink-soft">Searches current restaurant menus. Delivery availability is confirmed at checkout.</p>
-      </section>
+
 
       {!explore && <section aria-labelledby="category-heading" className="mt-9">
         <SectionTitle title="What sounds good?" action={<Link to="/explore" className="text-sm font-semibold text-pepper hover:underline">View all</Link>}/>
         <div id="category-heading" className="sr-only">Food categories</div>
-        <div className="grid grid-cols-4 gap-2 sm:max-w-2xl sm:gap-5">
-          {CATEGORIES.map((cat, idx) => <CategoryCircle key={cat.name} category={cat} food={categoryPhotos[idx]}
-            active={query.trim().toLowerCase() === cat.search} onChoose={setQuery}/>)}
+        <div className="no-scrollbar flex snap-x gap-3 overflow-x-auto pb-2 sm:gap-4">
+          {CATEGORIES.map((cat, idx) => <div key={cat.name} className="w-[112px] shrink-0 snap-start sm:w-[140px]">
+            <CategoryCircle category={cat} food={categoryPhotos[idx]} active={query.trim().toLowerCase() === cat.search} onChoose={setQuery}/>
+          </div>)}
         </div>
       </section>}
 
-      <section aria-label="Food filters" className="mt-7 flex flex-wrap gap-2 pb-2">
-        {chip(openOnly, 'Open now', () => setOpenOnly(v => !v))}
-        {chip(maxPrice, 'Under ₦3,000', () => setMaxPrice(v => !v))}
-        <Link to="/restaurants" className="inline-flex min-h-10 shrink-0 items-center rounded-full border border-hairline bg-paper px-4 py-2 text-xs font-semibold text-ink-soft hover:border-pepper hover:text-pepper sm:text-sm">Top rated kitchens</Link>
-        <button type="button" onClick={() => setFiltersOpen(value => !value)} aria-expanded={filtersOpen} aria-controls="food-cuisines" className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-full border border-hairline bg-paper px-4 py-2 text-xs font-semibold text-ink-soft hover:border-pepper hover:text-pepper sm:text-sm"><Icon name="settings" size={15}/> More filters</button>
+      <section aria-label="Quick food filters" className="mt-5 flex flex-wrap gap-2 pb-1">
+        {chip(openOnly, 'Open now', () => setOpenOnly(value => !value))}
+        {chip(maxPrice, 'Under ₦3,000', () => { setMaxPrice(value => !value); setFilterMaxPrice(''); })}
         {hasFilters && chip(false, 'Clear filters', resetFilters)}
       </section>
-      {filtersOpen && <div id="food-cuisines" className="mt-3 flex flex-wrap gap-2" aria-label="Filter by cuisine">
-        {CUISINES.map(item => chip(cuisine === item, item, () => setCuisine(item)))}
-      </div>}
 
       {isAuthenticated && favoriteFoods.length > 0 && !hasFilters && !explore && <section className="mt-9">
         <SectionTitle eyebrow="MADE FOR YOU" title="From your favorite kitchens"
@@ -468,6 +466,48 @@ export default function Home({ explore = false }) {
         <span>View cart · {itemCount} {itemCount === 1 ? 'item' : 'items'}</span>
         <span>{cartError ? 'Review' : formatNaira(cart?.subtotal || 0)} <Icon name="chevron" size={16} className="ml-1 inline-block"/></span>
       </Link>}
+      {filtersOpen && <Modal onClose={() => setFiltersOpen(false)} labelledBy="food-filter-title" className="max-w-lg">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-pepper">Personalise your search</p>
+            <h2 id="food-filter-title" className="mt-1 font-display text-2xl font-bold text-ink">Filter dishes</h2>
+            <p className="mt-1 text-sm text-ink-soft">Set a budget, choose a restaurant rating and sort your results.</p>
+          </div>
+          <button type="button" onClick={() => setFiltersOpen(false)} aria-label="Close filters" className="rounded-full p-2 text-ink-soft hover:bg-sand"><Icon name="x" size={19}/></button>
+        </div>
+        <div className="mt-6 space-y-5">
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-ink">Cuisine</label>
+            <div className="flex flex-wrap gap-2">
+              {CUISINES.map(item => <button key={item} type="button" onClick={() => setCuisine(item)} className={'rounded-full border px-3 py-2 text-xs font-semibold ' + (cuisine === item ? 'border-pepper bg-pepper text-white' : 'border-hairline bg-white text-ink-soft hover:border-pepper')}>{item}</button>)}
+            </div>
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-ink">Price range (₦)</label>
+            <div className="grid grid-cols-2 gap-3">
+              <input type="number" min="0" step="100" inputMode="numeric" value={filterDraft.minPrice} onChange={event => setFilterDraft(current => ({ ...current, minPrice: event.target.value }))} placeholder="Minimum" className="min-h-11 w-full rounded-xl border border-hairline bg-white px-3 text-sm text-ink focus:border-pepper focus:outline-none"/>
+              <input type="number" min="0" step="100" inputMode="numeric" value={filterDraft.maxPrice} onChange={event => setFilterDraft(current => ({ ...current, maxPrice: event.target.value }))} placeholder="Maximum" className="min-h-11 w-full rounded-xl border border-hairline bg-white px-3 text-sm text-ink focus:border-pepper focus:outline-none"/>
+            </div>
+          </div>
+          <div>
+            <label htmlFor="dish-min-rating" className="mb-2 block text-sm font-semibold text-ink">Minimum restaurant rating</label>
+            <select id="dish-min-rating" value={filterDraft.minRating} onChange={event => setFilterDraft(current => ({ ...current, minRating: event.target.value }))} className="min-h-11 w-full rounded-xl border border-hairline bg-white px-3 text-sm text-ink focus:border-pepper focus:outline-none">
+              <option value="">Any rating</option><option value="3">3.0 and above</option><option value="3.5">3.5 and above</option><option value="4">4.0 and above</option><option value="4.5">4.5 and above</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="dish-sort" className="mb-2 block text-sm font-semibold text-ink">Sort results</label>
+            <select id="dish-sort" value={filterDraft.sort} onChange={event => setFilterDraft(current => ({ ...current, sort: event.target.value }))} className="min-h-11 w-full rounded-xl border border-hairline bg-white px-3 text-sm text-ink focus:border-pepper focus:outline-none">
+              <option value="newest">Recently added</option><option value="price_low">Price: low to high</option><option value="price_high">Price: high to low</option><option value="rating">Top-rated restaurants</option>
+            </select>
+          </div>
+          {filterError && <p role="alert" className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{filterError}</p>}
+          <div className="flex items-center justify-between gap-3 border-t border-hairline pt-4">
+            <button type="button" onClick={resetFilters} className="min-h-11 rounded-xl px-3 text-sm font-semibold text-ink-soft hover:bg-sand hover:text-pepper">Clear all</button>
+            <button type="button" onClick={applyFilterPanel} className="min-h-11 rounded-xl bg-pepper px-6 text-sm font-bold text-white hover:bg-pepper-dark">Apply filters</button>
+          </div>
+        </div>
+      </Modal>}
       {cartConflict && <ConfirmModal title="Switch restaurants?" message={cartConflict.message}
         confirmLabel="Replace cart" onCancel={() => setCartConflict(null)} onConfirm={() => addToCart(cartConflict.item, true)}/>}
     </div>
