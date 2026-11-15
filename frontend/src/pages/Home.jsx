@@ -6,6 +6,7 @@ import { useCart } from '../context/CartContext.jsx';
 import FoodCard from '../components/FoodCard.jsx';
 import RestaurantCard from '../components/RestaurantCard.jsx';
 import ConfirmModal from '../components/ConfirmModal.jsx';
+import Modal from '../components/Modal.jsx';
 import { GridSkeleton, EmptyState, ErrorState } from '../components/StateViews.jsx';
 import { SearchField } from '../components/ui/Primitives.jsx';
 import Icon from '../components/ui/Icon.jsx';
@@ -62,7 +63,13 @@ export default function Home({ explore = false }) {
   const [cuisine, setCuisine] = useState('All');
   const [openOnly, setOpenOnly] = useState(false);
   const [maxPrice, setMaxPrice] = useState(false);
+  const [filterMinPrice, setFilterMinPrice] = useState('');
+  const [filterMaxPrice, setFilterMaxPrice] = useState('');
+  const [minRating, setMinRating] = useState('');
+  const [sort, setSort] = useState('newest');
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filterDraft, setFilterDraft] = useState({ minPrice: '', maxPrice: '', minRating: '', sort: 'newest' });
+  const [filterError, setFilterError] = useState('');
   const [foodRetry, setFoodRetry] = useState(0);
   const [restaurantRetry, setRestaurantRetry] = useState(0);
   const [foods, setFoods] = useState([]);
@@ -109,7 +116,10 @@ export default function Home({ explore = false }) {
         ...(debouncedQuery ? { q: debouncedQuery } : {}),
         ...(cuisine !== 'All' ? { cuisine } : {}),
         ...(openOnly ? { open_only: 'true' } : {}),
-        ...(maxPrice ? { max_price: '3000' } : {}),
+        ...(filterMinPrice !== '' ? { min_price: filterMinPrice } : {}),
+        ...(maxPrice ? { max_price: '3000' } : filterMaxPrice !== '' ? { max_price: filterMaxPrice } : {}),
+        ...(minRating !== '' ? { min_rating: minRating } : {}),
+        sort,
       },
       signal: controller.signal,
     }).then(({ data }) => {
@@ -122,7 +132,7 @@ export default function Home({ explore = false }) {
       if (!controller.signal.aborted) setFoodLoading(false);
     });
     return () => controller.abort();
-  }, [debouncedQuery, cuisine, openOnly, maxPrice, foodRetry]);
+  }, [debouncedQuery, cuisine, openOnly, maxPrice, filterMinPrice, filterMaxPrice, minRating, sort, foodRetry]);
 
   async function loadMoreFoods() {
     if (foodLoadingMore || foodLoading || foods.length >= foodTotal) return;
@@ -137,7 +147,10 @@ export default function Home({ explore = false }) {
           ...(debouncedQuery ? { q: debouncedQuery } : {}),
           ...(cuisine !== 'All' ? { cuisine } : {}),
           ...(openOnly ? { open_only: 'true' } : {}),
-          ...(maxPrice ? { max_price: '3000' } : {}),
+          ...(filterMinPrice !== '' ? { min_price: filterMinPrice } : {}),
+          ...(maxPrice ? { max_price: '3000' } : filterMaxPrice !== '' ? { max_price: filterMaxPrice } : {}),
+          ...(minRating !== '' ? { min_rating: minRating } : {}),
+          sort,
         },
         signal: controller.signal,
       });
@@ -265,9 +278,28 @@ export default function Home({ explore = false }) {
     foods.find(food => cat.pattern.test([food.name, food.category].filter(Boolean).join(' ')) && food.image_url)
   ), [foods]);
   const featured = foods.find(food => food.image_url && food.restaurants?.is_open) || foods.find(food => food.image_url) || null;
-  const hasFilters = Boolean(debouncedQuery || cuisine !== 'All' || openOnly || maxPrice);
+  const hasFilters = Boolean(debouncedQuery || cuisine !== 'All' || openOnly || maxPrice || filterMinPrice !== '' || filterMaxPrice !== '' || minRating !== '' || sort !== 'newest');
+  const activeFilterCount = [cuisine !== 'All', openOnly, maxPrice, filterMinPrice !== '', filterMaxPrice !== '', minRating !== '', sort !== 'newest'].filter(Boolean).length;
+  const openFilterPanel = () => {
+    setFilterDraft({ minPrice: filterMinPrice, maxPrice: filterMaxPrice, minRating, sort });
+    setFilterError('');
+    setFiltersOpen(true);
+  };
+  const applyFilterPanel = () => {
+    if (filterDraft.minPrice !== '' && filterDraft.maxPrice !== '' && Number(filterDraft.minPrice) > Number(filterDraft.maxPrice)) {
+      setFilterError('Minimum price cannot be higher than maximum price.');
+      return;
+    }
+    setFilterMinPrice(filterDraft.minPrice);
+    setFilterMaxPrice(filterDraft.maxPrice);
+    setMaxPrice(false);
+    setMinRating(filterDraft.minRating);
+    setSort(filterDraft.sort);
+    setFiltersOpen(false);
+    setFilterError('');
+  };
   const restaurantLink = id => '/restaurants/' + id;
-  const resetFilters = () => { setQuery(''); setCuisine('All'); setOpenOnly(false); setMaxPrice(false); };
+  const resetFilters = () => { setQuery(''); setCuisine('All'); setOpenOnly(false); setMaxPrice(false); setFilterMinPrice(''); setFilterMaxPrice(''); setMinRating(''); setSort('newest'); setFilterDraft({ minPrice: '', maxPrice: '', minRating: '', sort: 'newest' }); setFilterError(''); };
   const chip = (active, label, action) => (
     <button key={label} type="button" onClick={action} aria-pressed={active}
       className={'min-h-10 shrink-0 rounded-full border px-4 py-2 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pepper sm:text-sm ' +
