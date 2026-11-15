@@ -139,6 +139,9 @@ export default function Login() {
                 onChange={(v) => setForm({ ...form, password: v })}
                 required
               />
+              <div className="-mt-2 flex justify-end">
+                <Link to="/reset-password" className="text-sm font-semibold text-pepper hover:underline">Forgot password?</Link>
+              </div>
 
               {error && (
                 <div role="alert" aria-live="polite" className="flex items-start gap-3 rounded-xl border border-danger/20 bg-danger/5 px-4 py-3 text-sm text-danger">
