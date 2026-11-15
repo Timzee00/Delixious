@@ -11,6 +11,7 @@ import { GridSkeleton, EmptyState, ErrorState } from '../components/StateViews.j
 import { SearchField } from '../components/ui/Primitives.jsx';
 import Icon from '../components/ui/Icon.jsx';
 import { formatNaira } from '../lib/format.js';
+import { BUSINESS_TYPES } from '../data/businessTypes.js';
 
 const CUISINES = ['All', 'Nigerian', 'Continental', 'Chinese', 'Fast Food', 'Grills', 'Seafood', 'Pastries'];
 const CATEGORIES = [
@@ -60,6 +61,7 @@ export default function Home({ explore = false }) {
   const [query, setQuery] = useState(() => new URLSearchParams(location.search).get('q') || '');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [cuisine, setCuisine] = useState('All');
+  const [businessType, setBusinessType] = useState('All');
   const [openOnly, setOpenOnly] = useState(false);
   const [maxPrice, setMaxPrice] = useState(false);
   const [filterMinPrice, setFilterMinPrice] = useState('');
@@ -67,7 +69,7 @@ export default function Home({ explore = false }) {
   const [minRating, setMinRating] = useState('');
   const [sort, setSort] = useState('newest');
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [filterDraft, setFilterDraft] = useState({ minPrice: '', maxPrice: '', minRating: '', sort: 'newest' });
+  const [filterDraft, setFilterDraft] = useState({ minPrice: '', maxPrice: '', minRating: '', sort: 'newest', businessType: 'All' });
   const [filterError, setFilterError] = useState('');
   const [foodRetry, setFoodRetry] = useState(0);
   const [restaurantRetry, setRestaurantRetry] = useState(0);
@@ -114,6 +116,7 @@ export default function Home({ explore = false }) {
         page: 1, limit: 12,
         ...(debouncedQuery ? { q: debouncedQuery } : {}),
         ...(cuisine !== 'All' ? { cuisine } : {}),
+        ...(businessType !== 'All' ? { business_type: businessType } : {}),
         ...(openOnly ? { open_only: 'true' } : {}),
         ...(filterMinPrice !== '' ? { min_price: filterMinPrice } : {}),
         ...(maxPrice ? { max_price: '3000' } : filterMaxPrice !== '' ? { max_price: filterMaxPrice } : {}),
@@ -131,7 +134,7 @@ export default function Home({ explore = false }) {
       if (!controller.signal.aborted) setFoodLoading(false);
     });
     return () => controller.abort();
-  }, [debouncedQuery, cuisine, openOnly, maxPrice, filterMinPrice, filterMaxPrice, minRating, sort, foodRetry]);
+  }, [debouncedQuery, cuisine, businessType, openOnly, maxPrice, filterMinPrice, filterMaxPrice, minRating, sort, foodRetry]);
 
   async function loadMoreFoods() {
     if (foodLoadingMore || foodLoading || foods.length >= foodTotal) return;
@@ -145,6 +148,7 @@ export default function Home({ explore = false }) {
           page: foodPage + 1, limit: 12,
           ...(debouncedQuery ? { q: debouncedQuery } : {}),
           ...(cuisine !== 'All' ? { cuisine } : {}),
+          ...(businessType !== 'All' ? { business_type: businessType } : {}),
           ...(openOnly ? { open_only: 'true' } : {}),
           ...(filterMinPrice !== '' ? { min_price: filterMinPrice } : {}),
           ...(maxPrice ? { max_price: '3000' } : filterMaxPrice !== '' ? { max_price: filterMaxPrice } : {}),
@@ -278,9 +282,9 @@ export default function Home({ explore = false }) {
   ), [foods]);
   const featured = foods.find(food => food.image_url && food.restaurants?.is_open) || foods.find(food => food.image_url) || null;
   const hasFilters = Boolean(debouncedQuery || cuisine !== 'All' || openOnly || maxPrice || filterMinPrice !== '' || filterMaxPrice !== '' || minRating !== '' || sort !== 'newest');
-  const activeFilterCount = [cuisine !== 'All', openOnly, maxPrice, filterMinPrice !== '', filterMaxPrice !== '', minRating !== '', sort !== 'newest'].filter(Boolean).length;
+  const activeFilterCount = [cuisine !== 'All', businessType !== 'All', openOnly, maxPrice, filterMinPrice !== '', filterMaxPrice !== '', minRating !== '', sort !== 'newest'].filter(Boolean).length;
   const openFilterPanel = () => {
-    setFilterDraft({ minPrice: filterMinPrice, maxPrice: filterMaxPrice, minRating, sort });
+    setFilterDraft({ minPrice: filterMinPrice, maxPrice: filterMaxPrice, minRating, sort, businessType });
     setFilterError('');
     setFiltersOpen(true);
   };
@@ -289,6 +293,7 @@ export default function Home({ explore = false }) {
       setFilterError('Minimum price cannot be higher than maximum price.');
       return;
     }
+    setBusinessType(filterDraft.businessType || 'All');
     setFilterMinPrice(filterDraft.minPrice);
     setFilterMaxPrice(filterDraft.maxPrice);
     setMaxPrice(false);
@@ -298,7 +303,7 @@ export default function Home({ explore = false }) {
     setFilterError('');
   };
   const restaurantLink = id => '/restaurants/' + id;
-  const resetFilters = () => { setQuery(''); setCuisine('All'); setOpenOnly(false); setMaxPrice(false); setFilterMinPrice(''); setFilterMaxPrice(''); setMinRating(''); setSort('newest'); setFilterDraft({ minPrice: '', maxPrice: '', minRating: '', sort: 'newest' }); setFilterError(''); };
+  const resetFilters = () => { setQuery(''); setCuisine('All'); setBusinessType('All'); setOpenOnly(false); setMaxPrice(false); setFilterMinPrice(''); setFilterMaxPrice(''); setMinRating(''); setSort('newest'); setFilterDraft({ minPrice: '', maxPrice: '', minRating: '', sort: 'newest', businessType: 'All' }); setFilterError(''); };
   const chip = (active, label, action) => (
     <button key={label} type="button" onClick={action} aria-pressed={active}
       className={'min-h-10 shrink-0 rounded-full border px-4 py-2 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pepper sm:text-sm ' +
@@ -373,6 +378,20 @@ export default function Home({ explore = false }) {
 
 
 
+      {!explore && <section className="mt-9" aria-label="Explore food business categories">
+        <SectionTitle eyebrow="SHOP BY CATEGORY" title="What are you in the mood for?" action={<Link to="/restaurants" className="text-sm font-semibold text-pepper hover:underline">All businesses</Link>}/>
+        <div className="no-scrollbar flex snap-x gap-3 overflow-x-auto pb-2 sm:gap-4">
+          {BUSINESS_TYPES.map(type => (
+            <Link key={type.value} to={'/restaurants?business_type=' + encodeURIComponent(type.value)}
+              className="flex w-[142px] shrink-0 snap-start flex-col items-start gap-3 rounded-[22px] border border-[#F3E7DE] bg-white p-3 transition hover:-translate-y-0.5 hover:border-pepper/50 hover:shadow-sm sm:w-[164px] sm:p-4">
+              <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#FFF0E6] text-pepper"><Icon name={type.icon} size={25}/></span>
+              <span className="text-sm font-bold leading-tight text-ink">{type.label}</span>
+              <span className="text-xs font-semibold text-pepper">Explore <Icon name="arrow-right" size={13} className="ml-1 inline-block"/></span>
+            </Link>
+          ))}
+        </div>
+      </section>}
+
       {!explore && <section aria-labelledby="category-heading" className="mt-9">
         <SectionTitle title="What sounds good?" action={<Link to="/explore" className="text-sm font-semibold text-pepper hover:underline">View all</Link>}/>
         <div id="category-heading" className="sr-only">Food categories</div>
@@ -436,8 +455,8 @@ export default function Home({ explore = false }) {
       </section>}
 
       <section className="mt-12">
-        <SectionTitle eyebrow="EXPLORE BY RESTAURANT" title="Restaurants on Delixious"
-          action={<Link to="/restaurants" className="text-sm font-semibold text-pepper hover:underline">See all restaurants</Link>}/>
+        <SectionTitle eyebrow="EXPLORE THE MARKETPLACE" title="Food businesses on Delixious"
+          action={<Link to="/restaurants" className="text-sm font-semibold text-pepper hover:underline">See all businesses</Link>}/>
         {restaurantLoading ? <GridSkeleton/> : restaurantError ? <ErrorState message={restaurantError} onRetry={() => setRestaurantRetry(value => value + 1)}/> : restaurants.length ? (
           <div className="no-scrollbar flex snap-x gap-4 overflow-x-auto pb-3">
             {restaurants.map(restaurant => <div key={restaurant.id} className="w-[264px] shrink-0 snap-start sm:w-[308px]">
@@ -445,14 +464,14 @@ export default function Home({ explore = false }) {
                 favoriteBusy={favoriteBusy.has(restaurant.id)} onToggleFavorite={isAuthenticated ? () => toggleFavorite(restaurant.id) : undefined}/>
             </div>)}
           </div>
-        ) : <EmptyState message="No approved restaurants are available yet."/>}
+        ) : <EmptyState message="No approved food businesses are available yet."/>}
       </section>
 
       {!explore && <section className="mt-12 grid gap-5 overflow-hidden rounded-[28px] bg-ink px-6 py-8 text-white sm:grid-cols-[1fr_auto] sm:items-center sm:px-9">
         <div>
           <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-[#FFD1B5]">GROW WITH DELIXIOUS</p>
           <h2 className="mt-2 font-display text-2xl font-bold">Great food deserves more customers.</h2>
-          <p className="mt-2 max-w-xl text-sm text-white/75">Run a restaurant or deliver orders? Create an account and apply to join Delixious.</p>
+          <p className="mt-2 max-w-xl text-sm text-white/75">Run a restaurant, bakery, dessert shop or food business? Create an account and apply to join Delixious.</p>
         </div>
         <Link to="/signup" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-paper px-5 py-3 text-sm font-bold text-ink hover:bg-sand">Become a partner</Link>
       </section>}
@@ -480,6 +499,13 @@ export default function Home({ explore = false }) {
             <div className="flex flex-wrap gap-2">
               {CUISINES.map(item => <button key={item} type="button" onClick={() => setCuisine(item)} className={'rounded-full border px-3 py-2 text-xs font-semibold ' + (cuisine === item ? 'border-pepper bg-pepper text-white' : 'border-hairline bg-white text-ink-soft hover:border-pepper')}>{item}</button>)}
             </div>
+          </div>
+          <div>
+            <label htmlFor="business-type-filter" className="mb-2 block text-sm font-semibold text-ink">Business category</label>
+            <select id="business-type-filter" value={filterDraft.businessType || 'All'} onChange={event => setFilterDraft(current => ({ ...current, businessType: event.target.value }))} className="min-h-11 w-full rounded-xl border border-hairline bg-white px-3 text-sm text-ink focus:border-pepper focus:outline-none">
+              <option value="All">All food businesses</option>
+              {BUSINESS_TYPES.map(type => <option key={type.value} value={type.value}>{type.label}</option>)}
+            </select>
           </div>
           <div>
             <label className="mb-2 block text-sm font-semibold text-ink">Price range (₦)</label>
