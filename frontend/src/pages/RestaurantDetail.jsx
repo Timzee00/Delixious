@@ -9,6 +9,7 @@ import ConfirmModal from '../components/ConfirmModal.jsx';
 import SceneIllustration from '../components/ui/SceneIllustration.jsx';
 import Icon from '../components/ui/Icon.jsx';
 import { SearchField, Button } from '../components/ui/Primitives.jsx';
+import { businessTypeLabel } from '../data/businessTypes.js';
 
 const PAGE_SIZE = 30;
 
@@ -22,6 +23,7 @@ export default function RestaurantDetail() {
   const [menuPage, setMenuPage] = useState(1);
   const [menuTotal, setMenuTotal] = useState(0);
   const [menuQuery, setMenuQuery] = useState('');
+  const [menuSort, setMenuSort] = useState('newest');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [menuLoading, setMenuLoading] = useState(true);
   const [menuLoadingMore, setMenuLoadingMore] = useState(false);
@@ -48,16 +50,21 @@ export default function RestaurantDetail() {
       setLoading(true);
       setLoadError('');
       try {
-        const requests = [api.get(`/restaurants/${id}`)];
-        if (isAuthenticated) requests.push(api.get('/favorites/restaurants', { params: { restaurant_ids: id } }));
-        const [restaurantRes, favoriteRes] = await Promise.all(requests);
-        if (!cancelled) {
-          setRestaurant(restaurantRes.data.restaurant);
-          if (favoriteRes) setIsFavorite((favoriteRes.data.restaurant_ids || []).includes(id));
-          else setIsFavorite(false);
+        const { data } = await api.get(`/restaurants/${id}`);
+        if (cancelled) return;
+        const store = data.restaurant;
+        setRestaurant(store);
+        setIsFavorite(false);
+        if (isAuthenticated && store?.id) {
+          try {
+            const { data: favorites } = await api.get('/favorites/restaurants', { params: { restaurant_ids: store.id } });
+            if (!cancelled) setIsFavorite((favorites.restaurant_ids || []).includes(store.id));
+          } catch {
+            if (!cancelled) setActionError('Saved status could not be checked right now.');
+          }
         }
       } catch (err) {
-        if (!cancelled) setLoadError(err.response?.data?.error || 'Could not load this restaurant.');
+        if (!cancelled) setLoadError(err.response?.data?.error || 'Could not load this food business.');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -67,14 +74,15 @@ export default function RestaurantDetail() {
   }, [id, isAuthenticated]);
 
   useEffect(() => {
+    if (!restaurant?.id) return undefined;
     let cancelled = false;
     const controller = new AbortController();
     setMenuLoading(true);
     setMenuError('');
     setMenuMoreError('');
     setMenuPage(1);
-    api.get(`/restaurants/${id}/menu`, {
-      params: { page: 1, limit: PAGE_SIZE, ...(debouncedQuery ? { q: debouncedQuery } : {}) },
+    api.get(`/restaurants/${restaurant.id}/menu`, {
+      params: { page: 1, limit: PAGE_SIZE, sort: menuSort, ...(debouncedQuery ? { q: debouncedQuery } : {}) },
       signal: controller.signal,
     }).then(({ data }) => {
       if (cancelled) return;
@@ -82,20 +90,20 @@ export default function RestaurantDetail() {
       setMenuTotal(data.total || 0);
       setMenuPage(1);
     }).catch(err => {
-      if (!cancelled && err.code !== 'ERR_CANCELED') setMenuError(err.response?.data?.error || 'Could not load this menu.');
+      if (!cancelled && err.code !== 'ERR_CANCELED') setMenuError(err.response?.data?.error || 'Could not load this store catalogue.');
     }).finally(() => {
       if (!cancelled) setMenuLoading(false);
     });
     return () => { cancelled = true; controller.abort(); };
-  }, [id, debouncedQuery]);
+  }, [restaurant?.id, debouncedQuery, menuSort]);
 
   async function loadMoreMenu() {
-    if (menuLoadingMore || menuLoading || menuItems.length >= menuTotal) return;
+    if (!restaurant?.id || menuLoadingMore || menuLoading || menuItems.length >= menuTotal) return;
     setMenuLoadingMore(true);
     setMenuMoreError('');
     try {
-      const { data } = await api.get(`/restaurants/${id}/menu`, {
-        params: { page: menuPage + 1, limit: PAGE_SIZE, ...(debouncedQuery ? { q: debouncedQuery } : {}) },
+      const { data } = await api.get(`/restaurants/${restaurant.id}/menu`, {
+        params: { page: menuPage + 1, limit: PAGE_SIZE, sort: menuSort, ...(debouncedQuery ? { q: debouncedQuery } : {}) },
       });
       setMenuItems(current => [...current, ...(data.menu_items || [])]);
       setMenuPage(menuPage + 1);
@@ -119,8 +127,8 @@ export default function RestaurantDetail() {
     setFavoriteBusy(true);
     setActionError('');
     try {
-      if (isFavorite) await api.delete(`/favorites/restaurants/${id}`);
-      else await api.post(`/favorites/restaurants/${id}`);
+      if (isFavorite) await api.delete(`/favorites/restaurants/${restaurant.id}`);
+      else await api.post(`/favorites/restaurants/${restaurant.id}`);
       setIsFavorite(value => !value);
     } catch (err) {
       setActionError(err.response?.data?.error || 'Could not update your favorite.');
