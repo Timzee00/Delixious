@@ -163,7 +163,7 @@ export default function Cart() {
         <span className="text-ink-soft">Subtotal</span>
         <span className="font-mono text-lg font-semibold text-ink">{formatNaira(subtotal)}</span>
       </div>
-      <p className="mt-1 text-xs text-ink-soft">Delivery is covered by the restaurant.</p>
+      <p className="mt-1 text-xs text-ink-soft">A delivery charge is shown separately at checkout and goes to the delivery rider.</p>
 
       <button
         onClick={() => navigate('/checkout')}
