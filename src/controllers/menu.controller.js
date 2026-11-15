@@ -1,13 +1,16 @@
 import { supabaseAdmin } from '../config/supabase.js';
 
-const FEED_FIELDS = `
+const FEED_FIELDS = \`
   id, name, description, price, image_url, category, is_available, created_at, restaurant_id,
   restaurants!inner(id, name, logo_url, cover_image_url, cuisine_type, is_open, rating_avg, rating_count, approval_status)
-`;
+\`;
 
 export async function listMenuFeed(req, res, next) {
   try {
-    const { q, cuisine, open_only, max_price, restaurant_ids, page, limit } = req.query;
+    const {
+      q, cuisine, open_only, min_price, max_price, min_rating,
+      sort = 'newest', restaurant_ids, page, limit,
+    } = req.query;
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
@@ -15,19 +18,31 @@ export async function listMenuFeed(req, res, next) {
       .from('menu_items')
       .select(FEED_FIELDS, { count: 'exact' })
       .eq('is_available', true)
-      .eq('restaurants.approval_status', 'approved')
-      .order('created_at', { ascending: false })
-      .order('id', { ascending: true })
-      .range(from, to);
+      .eq('restaurants.approval_status', 'approved');
 
-    if (q) query = query.or(`name.ilike.%${q}%,description.ilike.%${q}%`);
+    if (q) query = query.or(\`name.ilike.%\${q}%,description.ilike.%\${q}%\`);
     if (cuisine) query = query.eq('restaurants.cuisine_type', cuisine);
     if (open_only === 'true') query = query.eq('restaurants.is_open', true);
+    if (min_price !== undefined) query = query.gte('price', min_price);
     if (max_price !== undefined) query = query.lte('price', max_price);
+    if (min_rating !== undefined) query = query.gte('restaurants.rating_avg', min_rating);
     if (restaurant_ids) {
-      const ids = restaurant_ids.split(',').map((id) => id.trim()).filter(Boolean);
+      const ids = restaurant_ids.split(',').map(id => id.trim()).filter(Boolean);
       if (ids.length) query = query.in('restaurant_id', ids);
     }
+
+    if (sort === 'price_low') {
+      query = query.order('price', { ascending: true });
+    } else if (sort === 'price_high') {
+      query = query.order('price', { ascending: false });
+    } else if (sort === 'rating') {
+      query = query
+        .order('rating_avg', { ascending: false, referencedTable: 'restaurants' })
+        .order('rating_count', { ascending: false, referencedTable: 'restaurants' });
+    } else {
+      query = query.order('created_at', { ascending: false });
+    }
+    query = query.order('id', { ascending: true }).range(from, to);
 
     const { data, error, count } = await query;
     if (error) throw error;
@@ -53,7 +68,7 @@ export async function getRestaurantMenu(req, res, next) {
       .order('name', { ascending: true })
       .order('id', { ascending: true })
       .range(from, from + limit - 1);
-    if (q) query = query.ilike('name', `%${q}%`);
+    if (q) query = query.ilike('name', \`%\${q}%\`);
     if (category) query = query.eq('category', category);
 
     const { data, error, count } = await query;
@@ -68,6 +83,7 @@ export async function getRestaurantMenu(req, res, next) {
     res.json({ menu_items, total: count || 0, page, limit, grouped_by_category });
   } catch (err) { next(err); }
 }
+
 export async function createMenuItem(req, res, next) {
   try {
     const { data, error } = await supabaseAdmin.from('menu_items').insert({ ...req.body, restaurant_id: req.restaurant.id }).select().single();
@@ -88,7 +104,7 @@ export async function toggleAvailability(req, res, next) {
   try {
     const { data, error } = await supabaseAdmin.from('menu_items').update({ is_available: !req.menuItem.is_available }).eq('id', req.menuItem.id).select().single();
     if (error) return res.status(400).json({ error: error.message });
-    res.json({ message: `Item marked as ${data.is_available ? 'available' : 'unavailable'}.`, menu_item: data });
+    res.json({ message: \`Item marked as \${data.is_available ? 'available' : 'unavailable'}.\`, menu_item: data });
   } catch (err) { next(err); }
 }
 
