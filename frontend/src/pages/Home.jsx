@@ -4,6 +4,7 @@ import api from '../lib/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useCart } from '../context/CartContext.jsx';
 import FoodCard from '../components/FoodCard.jsx';
+import DishCarousel from '../components/DishCarousel.jsx';
 import RestaurantCard from '../components/RestaurantCard.jsx';
 import ConfirmModal from '../components/ConfirmModal.jsx';
 import Modal from '../components/Modal.jsx';
@@ -426,9 +427,7 @@ export default function Home({ explore = false }) {
           <ErrorState message={foodError} onRetry={() => setFoodRetry(value => value + 1)} />
         ) : foods.length ? (
           <>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
-              {foods.map(item => <FoodCard key={item.id} item={item} onAdd={addToCart} adding={addBusy === item.id}/>)}
-            </div>
+            <DishCarousel items={foods} onAdd={addToCart} addingId={addBusy} />
             {foods.length < foodTotal && <div className="mt-7 flex flex-col items-center gap-2">
               <p className="text-xs text-ink-soft">Showing {foods.length.toLocaleString()} of {foodTotal.toLocaleString()} dishes</p>
               {foodMoreError && <p role="alert" className="text-sm text-danger">{foodMoreError}</p>}
