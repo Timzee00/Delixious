@@ -58,7 +58,7 @@ export default function DishCarousel({ items = [], onAdd, addingId }) {
     }, 10000);
 
     return () => window.clearInterval(timer);
-  }, [items.length, paused]);
+  }, [activeIndex, items.length, paused]);
 
   function move(direction) {
     const track = trackRef.current;
@@ -116,13 +116,14 @@ export default function DishCarousel({ items = [], onAdd, addingId }) {
         ref={trackRef}
         role="region"
         aria-label="Dish gallery. Swipe or use the arrow buttons to browse."
+        aria-roledescription="carousel"
         tabIndex={0}
         onScroll={handleScroll}
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => setPaused(false)}
         onPointerDown={() => setPaused(true)}
-        onPointerUp={() => setPaused(false)}
-        onPointerCancel={() => setPaused(false)}
+        onPointerUp={event => { if (event.pointerType !== 'mouse') setPaused(false); }}
+        onPointerCancel={event => { if (event.pointerType !== 'mouse') setPaused(false); }}
         onFocusCapture={() => setPaused(true)}
         onBlurCapture={event => {
           if (!event.currentTarget.contains(event.relatedTarget)) setPaused(false);
