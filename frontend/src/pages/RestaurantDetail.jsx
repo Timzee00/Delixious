@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useCart } from '../context/CartContext.jsx';
 import MenuItemRow from '../components/MenuItemRow.jsx';
 import FavoriteButton from '../components/FavoriteButton.jsx';
+import RestaurantReviewsModal from '../components/RestaurantReviewsModal.jsx';
 import ConfirmModal from '../components/ConfirmModal.jsx';
 import SceneIllustration from '../components/ui/SceneIllustration.jsx';
 import Icon from '../components/ui/Icon.jsx';
@@ -30,6 +31,7 @@ export default function RestaurantDetail() {
   const [menuError, setMenuError] = useState('');
   const [menuMoreError, setMenuMoreError] = useState('');
   const [isFavorite, setIsFavorite] = useState(false);
+  const [reviewsOpen, setReviewsOpen] = useState(false);
   const [favoriteBusy, setFavoriteBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -176,7 +178,24 @@ export default function RestaurantDetail() {
         </div>
         <div className="flex flex-wrap items-center justify-between gap-4 p-4 sm:px-7 sm:py-5">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-ink-soft">
-            {restaurant.rating_count > 0 && <span className="inline-flex items-center gap-1.5 font-semibold text-ink"><Icon name="star" size={16} className="fill-gold text-gold"/>{Number(restaurant.rating_avg).toFixed(1)} <span className="font-normal text-ink-soft">({restaurant.rating_count.toLocaleString()} reviews)</span></span>}
+            <button
+              type="button"
+              onClick={() => setReviewsOpen(true)}
+              aria-haspopup="dialog"
+              aria-label={restaurant.rating_count > 0 ? `Read ${restaurant.rating_count} reviews for ${restaurant.name}` : `Be the first to review ${restaurant.name}`}
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-full px-2 py-1 font-semibold text-ink transition-colors hover:bg-sand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pepper"
+            >
+              <Icon name="star" size={16} className="fill-gold text-gold"/>
+              {restaurant.rating_count > 0 ? (
+                <>
+                  {Number(restaurant.rating_avg).toFixed(1)}
+                  <span className="font-normal text-ink-soft">({Number(restaurant.rating_count).toLocaleString()} reviews)</span>
+                </>
+              ) : (
+                <span className="font-normal text-ink-soft">Be the first to review</span>
+              )}
+              <Icon name="chevron" size={13} className="text-ink-soft"/>
+            </button>
             {restaurant.address && <span className="inline-flex items-center gap-1.5"><Icon name="map-pin" size={16}/>{restaurant.address}</span>}
           </div>
           <FavoriteButton active={isFavorite} onClick={toggleFavorite} disabled={!isAuthenticated || favoriteBusy}/>
@@ -210,6 +229,8 @@ export default function RestaurantDetail() {
           </>
         )}
       </section>
+
+      {reviewsOpen && <RestaurantReviewsModal restaurant={restaurant} onClose={() => setReviewsOpen(false)}/>}
 
       {conflict && <ConfirmModal title="Switch restaurants?" message={conflict.message} confirmLabel="Replace cart" onCancel={() => setConflict(null)} onConfirm={() => handleAdd(conflict.item, true)}/>}
     </div>
