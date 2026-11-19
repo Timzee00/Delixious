@@ -37,11 +37,10 @@ export default function OrderTrackingPage() {
       setOrder(data.order);
       setTracking(data.order.delivery_tracking?.[0] || null);
 
-      if (data.order.status === 'delivered') {
-        const { data: reviewsData } = await api.get('/reviews/mine');
-        const match = reviewsData.reviews.find((r) => r.order_id === id);
-        if (match) setExistingReview(match);
-      }
+      const embeddedReview = Array.isArray(data.order.reviews)
+        ? (data.order.reviews[0] || null)
+        : (data.order.reviews || null);
+      setExistingReview(embeddedReview);
     } catch (err) {
       setError(err.response?.data?.error || 'Could not load this order.');
     } finally {
@@ -233,9 +232,14 @@ export default function OrderTrackingPage() {
 
       {order.status === 'delivered' && (
         <div className="ticket mt-6 p-6">
-          <h3 className="font-display text-sm font-bold uppercase tracking-wide text-ink-soft">
-            {existingReview ? 'Your review' : 'Rate this order'}
-          </h3>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="font-display text-sm font-bold uppercase tracking-wide text-ink-soft">
+              {existingReview ? 'Your review' : 'Rate this restaurant'}
+            </h3>
+            <span className="inline-flex items-center gap-1 rounded-full bg-[#EAF5EF] px-2.5 py-1 text-[10px] font-semibold text-[#26764A]">
+              <Icon name="shield-check" size={12}/> Verified purchase
+            </span>
+          </div>
           {existingReview ? (
             <div className="mt-3">
               <StarDisplay rating={existingReview.rating} />
