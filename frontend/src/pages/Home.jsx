@@ -4,6 +4,7 @@ import api from '../lib/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useCart } from '../context/CartContext.jsx';
 import FoodCard from '../components/FoodCard.jsx';
+import HeroFoodCarousel from '../components/HeroFoodCarousel.jsx';
 import DishCarousel from '../components/DishCarousel.jsx';
 import RestaurantCard from '../components/RestaurantCard.jsx';
 import ConfirmModal from '../components/ConfirmModal.jsx';
@@ -281,7 +282,6 @@ export default function Home({ explore = false }) {
   const categoryPhotos = useMemo(() => CATEGORIES.map(cat =>
     foods.find(food => cat.pattern.test([food.name, food.category].filter(Boolean).join(' ')) && food.image_url)
   ), [foods]);
-  const featured = foods.find(food => food.image_url && food.restaurants?.is_open) || foods.find(food => food.image_url) || null;
   const hasFilters = Boolean(debouncedQuery || cuisine !== 'All' || openOnly || maxPrice || filterMinPrice !== '' || filterMaxPrice !== '' || minRating !== '' || sort !== 'newest');
   const activeFilterCount = [cuisine !== 'All', businessType !== 'All', openOnly, maxPrice, filterMinPrice !== '', filterMaxPrice !== '', minRating !== '', sort !== 'newest'].filter(Boolean).length;
   const openFilterPanel = () => {
@@ -357,22 +357,7 @@ export default function Home({ explore = false }) {
                 Explore dishes <Icon name="chevron" size={17}/>
               </Link>
             </div>
-            <div className="relative mx-auto flex h-[180px] w-full max-w-md items-center justify-center sm:h-[260px] lg:h-[350px]">
-              <div className="absolute inset-x-12 top-4 aspect-square rounded-full border-[12px] border-white/15 bg-white/10"/>
-              <div className="relative aspect-square h-[170px] overflow-hidden rounded-full border-[10px] border-white/90 bg-[#FFE6CF] shadow-[0_22px_65px_rgba(41,20,11,0.25)] sm:h-[250px] lg:h-[330px]">
-                {featured?.image_url ? (
-                  <img src={featured.image_url} alt={featured.name} fetchPriority="high" decoding="async" className="h-full w-full object-cover"/>
-                ) : (
-                  <div className="flex h-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-[#FFE7C6] to-[#FFC69A] text-pepper">
-                    <Icon name="bag" size={66}/>
-                    <span className="font-display text-base font-bold">Delicious starts here</span>
-                  </div>
-                )}
-              </div>
-              {featured && <Link to={restaurantLink(featured.restaurant_id)} className="absolute bottom-0 right-0 max-w-[200px] truncate rounded-xl bg-paper px-3 py-2 text-xs font-semibold text-ink shadow-lg">
-                {featured.name} · {formatNaira(featured.price)}
-              </Link>}
-            </div>
+            <HeroFoodCarousel items={foods} />
           </div>
         </section>
       )}
