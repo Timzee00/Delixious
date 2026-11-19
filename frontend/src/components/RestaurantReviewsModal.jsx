@@ -162,7 +162,7 @@ export default function RestaurantReviewsModal({ restaurant, onClose }) {
           </div>
         ) : reviews.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-hairline bg-white px-5 py-9 text-center">
-            <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-[#FFF0E8] text-pepper"><Icon name="message-square" size={22}/></span>
+            <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-[#FFF0E8] text-pepper"><Icon name="receipt-text" size={22}/></span>
             <h4 className="mt-3 font-display text-lg font-bold text-ink">No reviews yet</h4>
             <p className="mx-auto mt-1 max-w-sm text-sm leading-6 text-ink-soft">When customers complete an order and share their experience, their feedback will appear here.</p>
           </div>
@@ -180,7 +180,7 @@ export default function RestaurantReviewsModal({ restaurant, onClose }) {
                       <h4 className="truncate text-sm font-bold text-ink">{reviewer}</h4>
                       {review.verified_purchase && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-[#EAF5EF] px-2 py-0.5 text-[10px] font-semibold text-[#26764A]">
-                          <Icon name="check-circle" size={12}/> Verified order
+                          <Icon name="circle-check" size={12}/> Verified order
                         </span>
                       )}
                     </div>
