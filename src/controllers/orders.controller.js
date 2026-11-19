@@ -198,7 +198,7 @@ export async function listMyOrders(req, res, next) {
     const from = (page - 1) * limit;
     let query = supabaseAdmin
       .from('orders')
-      .select('*, restaurants(name, logo_url), order_items(*)', { count: 'exact' })
+      .select('*, restaurants(name, logo_url), order_items(*), reviews(id, rating, comment, created_at)', { count: 'exact' })
       .eq('user_id', req.user.id)
       .order('created_at', { ascending: false })
       .order('id', { ascending: true })
@@ -216,7 +216,7 @@ export async function getOrderGroup(req, res, next) {
   try {
     const { data, error } = await supabaseAdmin
       .from('orders')
-      .select('*, restaurants(id, name, logo_url, owner_id), order_items(*), delivery_tracking(*)')
+      .select('*, restaurants(id, name, logo_url, owner_id), order_items(*), delivery_tracking(*), reviews(id, rating, comment, created_at)')
       .eq('checkout_group_id', req.params.checkoutGroupId)
       .eq('user_id', req.user.id)
       .order('created_at', { ascending: true });
@@ -234,7 +234,7 @@ export async function getOrder(req, res, next) {
   try {
     const { data: order, error } = await supabaseAdmin
       .from('orders')
-      .select('*, restaurants(id, name, logo_url, owner_id), order_items(*), delivery_tracking(*)')
+      .select('*, restaurants(id, name, logo_url, owner_id), order_items(*), delivery_tracking(*), reviews(id, rating, comment, created_at)')
       .eq('id', req.params.id)
       .single();
     if (error || !order) return res.status(404).json({ error: 'Order not found.' });
