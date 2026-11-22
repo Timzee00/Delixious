@@ -17,8 +17,6 @@ const activityQuery = z.object({
 
 const settingsSchema = z.object({
   restaurant_commission_bps: z.number().int().min(0).max(3000),
-  rider_commission_bps: z.number().int().min(0).max(3000),
-  restaurant_delivery_fee_kobo: z.number().int().min(0).max(2000000),
 }).strict();
 
 router.get('/', walletOverview);
