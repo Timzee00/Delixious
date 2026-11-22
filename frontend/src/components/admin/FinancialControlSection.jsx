@@ -18,6 +18,7 @@ function Metric({ label, value, note, tone = 'default' }) {
 
 export default function FinancialControlSection() {
   const [summary, setSummary] = useState(null);
+  const [health, setHealth] = useState(null);
   const [journals, setJournals] = useState([]);
   const [payouts, setPayouts] = useState([]);
   const [events, setEvents] = useState([]);
@@ -33,8 +34,12 @@ export default function FinancialControlSection() {
   const [error, setError] = useState('');
 
   const loadSummary = useCallback(async () => {
-    const { data } = await adminApi.getFinancialSummary({ days: 30 });
-    setSummary(data.summary || null);
+    const [{ data: summaryData }, { data: healthData }] = await Promise.all([
+      adminApi.getFinancialSummary({ days: 30 }),
+      adminApi.getFinancialHealth(),
+    ]);
+    setSummary(summaryData.summary || null);
+    setHealth(healthData.health || null);
   }, []);
 
   const loadJournals = useCallback(async (nextCursor = null, append = false) => {
@@ -137,6 +142,35 @@ export default function FinancialControlSection() {
       </div>
 
       {error && <div role="alert" className="rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div>}
+
+      <section className="rounded-2xl border border-hairline bg-paper p-4 sm:p-5" aria-live="polite">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-ink">Automated financial health checks</p>
+            <p className="mt-1 text-xs text-ink-soft">Database watchdog runs every 15 minutes, including when the free web service is asleep.</p>
+          </div>
+          <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${health?.status === 'critical' ? 'bg-danger/10 text-danger' : health?.status === 'warning' ? 'bg-sand text-ink' : 'bg-sand text-ink'}`}>
+            {health?.status || 'Checking'}
+          </span>
+        </div>
+        <p className="mt-2 text-xs text-ink-soft">
+          {health?.checked_at ? `Last checked ${new Date(health.checked_at).toLocaleString('en-NG')}` : 'No completed check is available yet.'}
+          {health ? ` · ${health.critical_count || 0} critical · ${health.warning_count || 0} warnings` : ''}
+        </p>
+        {health?.checks?.length > 0 && (
+          <ul className="mt-3 space-y-2">
+            {health.checks.map(item => (
+              <li key={item.code} className="rounded-xl border border-hairline px-3 py-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-sm font-medium text-ink">{item.message}</span>
+                  <span className="text-xs font-semibold text-ink-soft">{item.count} record(s) · {item.severity}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        {health?.status === 'healthy' && <p className="mt-2 text-sm text-ink-soft">No financial exceptions were detected by the latest internal checks.</p>}
+      </section>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Metric label="Posted journals" value={Number(summary?.total_journals || 0).toLocaleString('en-NG')} note="All-time immutable accounting records"/>
