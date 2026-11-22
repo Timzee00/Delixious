@@ -46,14 +46,14 @@ async function payoutRider(order) {
     return;
   }
 
-  const { data: rider } = await supabaseAdmin
+  const { data: rider, error: riderError } = await supabaseAdmin
     .from('profiles')
     .select('rider_transfer_recipient_code')
     .eq('id', tracking.delivery_agent_id)
     .single();
-
-  if (!rider?.rider_transfer_recipient_code) {
+  if (riderError) {
     await supabaseAdmin.from('orders').update({ rider_payout_status: 'failed' }).eq('id', order.id).eq('rider_payout_status', 'processing');
+    console.error('Rider payout profile lookup failed', { orderId: order.id, message: riderError.message });
     return;
   }
 
@@ -94,6 +94,24 @@ async function payoutRider(order) {
   if (referenceError) {
     await supabaseAdmin.from('orders').update({ rider_payout_status: 'failed' }).eq('id', order.id).eq('rider_payout_status', 'processing');
     console.error('Unable to link rider transfer reference', { orderId: order.id, message: referenceError.message });
+    return;
+  }
+
+  if (!rider?.rider_transfer_recipient_code) {
+    const { error: holdError } = await supabaseAdmin.from('financial_payouts').insert({
+      wallet_account_id: riderWallet.id,
+      owner_user_id: tracking.delivery_agent_id,
+      payout_type: 'rider',
+      amount_kobo: amountKobo,
+      beneficiary_token: null,
+      idempotency_key: `rider-payout:${order.id}`,
+      provider_reference: reference,
+      status: 'on_hold',
+      last_error_code: 'RECIPIENT_NOT_READY',
+      last_error_message: 'Rider payout recipient has not been verified.',
+    });
+    await supabaseAdmin.from('orders').update({ rider_payout_status: 'failed' }).eq('id', order.id).eq('rider_payout_status', 'processing');
+    if (holdError) console.error('Unable to place rider payout on hold', { orderId: order.id, message: holdError.message });
     return;
   }
 
