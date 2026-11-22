@@ -1,7 +1,11 @@
 import api from './api.js';
 
 export const adminApi = {
-  getStats: () => api.get('/admin/stats'),\n  getFinancialSummary: (params) => api.get('/admin/finance/summary', { params }),\n  listFinancialJournals: (params) => api.get('/admin/finance/journals', { params }),\n  listFinancialPayouts: (params) => api.get('/admin/finance/payouts', { params }),\n  listProviderEvents: (params) => api.get('/admin/finance/events', { params }),
+  getStats: () => api.get('/admin/stats'),
+  getFinancialSummary: (params) => api.get('/admin/finance/summary', { params }),
+  listFinancialJournals: (params) => api.get('/admin/finance/journals', { params }),
+  listFinancialPayouts: (params) => api.get('/admin/finance/payouts', { params }),
+  listProviderEvents: (params) => api.get('/admin/finance/events', { params }),
   listRestaurants: (params) => api.get('/admin/restaurants', { params }),
   setRestaurantApproval: (id, status) => api.patch(`/admin/restaurants/${id}/approval`, { status }),
   listRiders: (params) => api.get('/admin/riders', { params }),
