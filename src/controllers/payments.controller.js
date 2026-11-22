@@ -137,7 +137,7 @@ async function handleSuccessfulPayment(data, { retryBusy = false, alreadyVerifie
 
     const { error: successError } = await supabaseAdmin
       .from('payments')
-      .update({ status: 'success', processing_started_at: null, updated_at: new Date().toISOString(), raw_response: data })
+      .update({ status: 'success', processing_started_at: null, updated_at: new Date().toISOString(), raw_response: transaction })
       .eq('id', claimedPayment.id)
       .eq('status', 'processing');
     if (successError) throw successError;
