@@ -3,6 +3,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import {
   checkout,
+  quoteCheckout,
   listMyOrders,
   getOrderGroup,
   getOrder,
@@ -13,6 +14,7 @@ import { checkoutSchema, updateOrderStatusSchema, listOrdersQuerySchema } from '
 
 const router = Router();
 
+router.post('/quote', requireAuth, validate({ body: checkoutSchema }), quoteCheckout);
 router.post('/checkout', requireAuth, validate({ body: checkoutSchema }), checkout);
 router.get('/', requireAuth, validate({ query: listOrdersQuerySchema }), listMyOrders);
 router.get('/group/:checkoutGroupId', requireAuth, getOrderGroup);
