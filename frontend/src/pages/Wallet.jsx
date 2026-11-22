@@ -92,8 +92,8 @@ export default function Wallet() {
   const [loading, setLoading] = useState(true);
   const [activityLoading, setActivityLoading] = useState(false);
   const [error, setError] = useState('');
-  const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
+  const [nextCursor, setNextCursor] = useState(null);
+  const [hasMore, setHasMore] = useState(false);
 
   const loadOverview = useCallback(async () => {
     setError('');
@@ -108,14 +108,15 @@ export default function Wallet() {
 
   useEffect(() => { loadOverview(); }, [loadOverview]);
 
-  const loadActivity = useCallback(async (walletId, nextPage = 1) => {
-    if (!walletId) { setActivity([]); setTotal(0); return; }
+  const loadActivity = useCallback(async (walletId, cursor = null, append = false) => {
+    if (!walletId) { setActivity([]); setNextCursor(null); setHasMore(false); return; }
     setActivityLoading(true);
     try {
-      const { data } = await api.get('/wallet/activity', { params: { wallet_id: walletId, page: nextPage } });
-      setActivity(data.activity || []);
-      setTotal(data.total || 0);
-      setPage(nextPage);
+      const params = { wallet_id: walletId, limit: 15, ...(cursor ? { cursor } : {}) };
+      const { data } = await api.get('/wallet/activity', { params });
+      setActivity(current => append ? [...current, ...(data.activity || [])] : (data.activity || []));
+      setNextCursor(data.next_cursor || null);
+      setHasMore(Boolean(data.has_more));
     } catch (err) {
       setError(err.response?.data?.error || 'Could not load wallet activity.');
     } finally { setActivityLoading(false); }
@@ -220,11 +221,11 @@ export default function Wallet() {
                   ))}
                 </div>
               )}
-              {total > 15 && (
-                <div className="flex items-center justify-between border-t border-hairline px-5 py-3">
-                  <button disabled={page <= 1 || activityLoading} onClick={() => loadActivity(wallet.id, page - 1)} className="text-sm font-medium text-pepper disabled:text-ink-soft/50">Previous</button>
-                  <span className="text-xs text-ink-soft">Page {page}</span>
-                  <button disabled={page * 15 >= total || activityLoading} onClick={() => loadActivity(wallet.id, page + 1)} className="text-sm font-medium text-pepper disabled:text-ink-soft/50">Next</button>
+              {hasMore && (
+                <div className="border-t border-hairline px-5 py-3 text-center">
+                  <button disabled={activityLoading} onClick={() => loadActivity(wallet.id, nextCursor, true)} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-hairline px-4 py-2 text-sm font-semibold text-ink disabled:opacity-50">
+                    {activityLoading ? 'Loading…' : 'Load older activity'} <Icon name="chevron-down" size={16}/>
+                  </button>
                 </div>
               )}
             </section>
