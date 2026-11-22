@@ -374,3 +374,13 @@ export async function listProviderEvents(req, res, next) {
     res.json({ events, has_more: hasMore, next_cursor: nextCursor, limit });
   } catch (err) { next(err); }
 }
+
+
+export async function getFinancialHealth(req,res,next) {
+  try {
+    const {data,error}=await supabaseAdmin.rpc('get_latest_financial_health');
+    if(error)throw error;
+    res.set('Cache-Control','private, no-store');
+    res.json({health:data});
+  } catch(err) { next(err); }
+}
