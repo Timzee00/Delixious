@@ -9,6 +9,7 @@ const payment = {
 const orders = [{
   id: 'order-1',
   restaurant_id: 'restaurant-1',
+  restaurant_wallet_account_id: 'a0b1c2d3-e4f5-4678-9abc-def012345678',
   total_amount: 11000,
   restaurant_net_amount: 9000,
   rider_payout_amount: 1000,
