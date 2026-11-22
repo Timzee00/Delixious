@@ -39,7 +39,7 @@ AS $$
  JOIN public.wallet_settings ws ON ws.id=1
  WHERE o.id=p_order_id AND o.payment_status='paid' AND o.status IN ('confirmed','preparing','out_for_delivery')
  AND p.role='delivery_agent' AND p.rider_approval_status='approved' AND p.rider_service_area_verified=true
- AND lower(p.rider_operating_state)=lower(r.state) AND p.rider_base_lat IS NOT NULL AND p.rider_base_lng IS NOT NULL
+ AND lower(p.rider_operating_state)=lower(o.destination_state) AND p.rider_base_lat IS NOT NULL AND p.rider_base_lng IS NOT NULL
  AND p.rider_service_radius_km IS NOT NULL AND p.rider_service_radius_km>0
  AND r.service_area_verified=true AND r.state IS NOT NULL AND r.lat IS NOT NULL AND r.lng IS NOT NULL
  AND o.destination_state IS NOT NULL AND o.delivery_lat IS NOT NULL AND o.delivery_lng IS NOT NULL
