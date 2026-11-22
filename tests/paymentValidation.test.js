@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assertVerifiedPaystackPayment, assertPaystackSplitMatchesOrders } from '../src/utils/paymentValidation.js';
+import { assertVerifiedPaystackPayment, assertPaystackSplitMatchesOrders, assertPaystackPaymentEnvironment } from '../src/utils/paymentValidation.js';
 
 const stored = { reference: 'delixious_example', amount: '2500.50' };
 const valid = { reference: 'delixious_example', status: 'success', amount: 250050, currency: 'NGN' };
@@ -73,5 +73,23 @@ describe('Paystack dynamic multi-split verification', () => {
     const changed = structuredClone(transaction);
     changed.split.shares.paystack = 999;
     expect(() => assertPaystackSplitMatchesOrders(changed, orders)).toThrow(/do not reconcile/i);
+  });
+});
+
+
+describe('Paystack test/live environment isolation', () => {
+  it('accepts a matching test payment environment', () => {
+    expect(assertPaystackPaymentEnvironment({domain:'test'},{payment_environment:'test'})).toBe(true);
+  });
+  it('accepts a matching live payment environment', () => {
+    expect(assertPaystackPaymentEnvironment({domain:'live'},{payment_environment:'live'})).toBe(true);
+  });
+  it.each([
+    [{domain:'test'},{payment_environment:'live'}],
+    [{domain:'live'},{payment_environment:'test'}],
+    [{domain:'unknown'},{payment_environment:'test'}],
+    [{domain:'test'},{}],
+  ])('rejects a missing or mismatched environment', (transaction,payment) => {
+    expect(() => assertPaystackPaymentEnvironment(transaction,payment)).toThrow(/environment does not match/i);
   });
 });
