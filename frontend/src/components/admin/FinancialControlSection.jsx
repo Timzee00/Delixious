@@ -59,6 +59,7 @@ export default function FinancialControlSection() {
 
   const accountBalance = code => Number(summary?.system_accounts?.find(item => item.account_code === code)?.balance_kobo || 0);
   const payoutQueue = summary?.payout_queue || {};
+  const eventQueue = summary?.provider_event_queue || {};
 
   return (
     <section className="space-y-6">
@@ -82,6 +83,9 @@ export default function FinancialControlSection() {
         <Metric label="Rider payable control" value={money(accountBalance('SYS:RIDER_PAYABLE'))} note="Amount recorded as owed to riders"/>
         <Metric label="Paystack clearing" value={money(accountBalance('SYS:PAYSTACK_CLEARING'))} note="Provider clearing control account"/>
         <Metric label="Failed payouts" value={Number(payoutQueue.failed || 0).toLocaleString('en-NG')} note="Requires reconciliation before retry" tone={payoutQueue.failed ? 'danger' : 'default'}/>
+        <Metric label="Payouts on hold" value={Number(payoutQueue.on_hold || 0).toLocaleString('en-NG')} note="Recipient verification or manual review"/>
+        <Metric label="Payouts processing" value={Number(payoutQueue.processing || 0).toLocaleString('en-NG')} note="Awaiting final provider confirmation"/>
+        <Metric label="Failed provider events" value={Number(eventQueue.failed || 0).toLocaleString('en-NG')} note="Webhook processing needs review" tone={eventQueue.failed ? 'danger' : 'default'}/>
         <Metric label="Unbalanced journals" value={Number(summary?.unbalanced_journals || 0).toLocaleString('en-NG')} note="Must remain zero" tone={summary?.unbalanced_journals ? 'danger' : 'default'}/>
         <Metric label="Recent journals (30 days)" value={Number(summary?.recent_journals || 0).toLocaleString('en-NG')} note="Bounded reporting window"/>
       </div>
