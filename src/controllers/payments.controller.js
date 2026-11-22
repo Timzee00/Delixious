@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { supabaseAdmin } from '../config/supabase.js';
 import { verifyTransaction, listBanks } from '../utils/paystack.js';
-import { assertVerifiedPaystackPayment } from '../utils/paymentValidation.js';
+import { assertVerifiedPaystackPayment, assertPaystackSplitMatchesOrders } from '../utils/paymentValidation.js';
 import { assertMatchingRiderTransfer } from '../utils/transferValidation.js';
 import { removePurchasedCartLines } from '../utils/paidCartCleanup.js';
 import { beginProviderEvent, finishProviderEvent } from '../utils/providerEventInbox.js';
@@ -9,7 +9,7 @@ import { buildOrderPaymentJournal } from '../utils/orderPaymentJournal.js';
 import { postFinancialJournal } from '../services/financialLedger.js';
 import { buildRiderSettlementJournal } from '../utils/riderWalletJournal.js';
 
-async function handleSuccessfulPayment(data, { retryBusy = false } = {}) {
+async function handleSuccessfulPayment(data, { retryBusy = false, alreadyVerified = false } = {}) {
   const reference = data.reference;
 
   const { data: payment, error: paymentLookupError } = await supabaseAdmin
@@ -21,16 +21,26 @@ async function handleSuccessfulPayment(data, { retryBusy = false } = {}) {
   if (paymentLookupError) throw paymentLookupError;
   if (!payment) throw new Error('Verified Paystack charge has no matching Delixious payment record. Manual reconciliation is required.');
 
-  // A valid webhook signature proves the source, not the price. Validate
-  // reference, exact NGN amount in kobo and currency before fulfillment.
-  assertVerifiedPaystackPayment(data, payment);
   if (payment.status === 'success') return;
+
+  // Verify with Paystack's API as well as the signed webhook. The webhook's
+  // split details are retained when the verification response omits them.
+  const verifiedResponse = alreadyVerified ? { status: true, data } : await verifyTransaction(reference);
+  if (!verifiedResponse?.status || !verifiedResponse.data) {
+    throw new Error('Paystack could not verify the successful charge.');
+  }
+  const transaction = {
+    ...verifiedResponse.data,
+    split: verifiedResponse.data.split || data.split,
+  };
+  assertVerifiedPaystackPayment(transaction, payment);
 
   const { data: checkoutOrders, error: checkoutError } = await supabaseAdmin
     .from('orders')
-    .select('id, status, payment_status')
+    .select('id, status, payment_status, restaurant_net_amount, restaurant_paystack_subaccount_code')
     .eq('checkout_group_id', payment.checkout_group_id);
   if (checkoutError) throw checkoutError;
+  assertPaystackSplitMatchesOrders(transaction, checkoutOrders || []);
   if (!checkoutOrders?.length || checkoutOrders.some((order) =>
     order.status === 'cancelled' || order.payment_status === 'refunded')) {
     // Never silently resurrect cancelled/refunded orders when a late charge
@@ -44,7 +54,7 @@ async function handleSuccessfulPayment(data, { retryBusy = false } = {}) {
   const nowIso = now.toISOString();
   const staleBefore = new Date(now.getTime() - 5 * 60 * 1000).toISOString();
   let claimQuery = supabaseAdmin.from('payments')
-    .update({ status: 'processing', processing_started_at: nowIso, updated_at: nowIso, raw_response: data })
+    .update({ status: 'processing', processing_started_at: nowIso, updated_at: nowIso, raw_response: transaction })
     .eq('id', payment.id);
 
   if (payment.status === 'pending' || payment.status === 'failed') {
