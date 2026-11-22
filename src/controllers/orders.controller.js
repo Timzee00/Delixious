@@ -45,7 +45,7 @@ async function buildCheckoutQuote(userId, input) {
     const unavailable=cartItems.find(ci=>!ci.menu_items||!ci.menu_items.is_available||ci.menu_items.restaurant_id!==cart.restaurant_id);
     if(unavailable)throw new Error(`${unavailable.menu_items?.name||'A cart item'} is no longer available. Refresh your cart.`);
     const {data:restaurant,error:restaurantError}=await supabaseAdmin.from('restaurants')
-      .select('id,name,is_open,approval_status,paystack_subaccount_code,state,lat,lng,service_area_verified')
+      .select('id,name,is_open,approval_status,paystack_subaccount_code,state,lat,lng,service_radius_km,service_area_verified')
       .eq('id',cart.restaurant_id).single();
     if(restaurantError||!restaurant)throw new Error('Restaurant not found.');
     if(!restaurant.is_open)throw new Error(`${restaurant.name} is currently closed.`);
