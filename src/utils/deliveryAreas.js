@@ -19,5 +19,6 @@ export function assertRestaurantDeliveryArea({restaurant,destinationState,delive
   if(!restaurant.service_area_verified||restaurant.lat==null||restaurant.lng==null) throw new Error('This restaurant has not completed service-area verification.');
   if(destination!==origin&&!allowInterstate) throw new Error('This restaurant does not currently deliver outside its state.');
   const distanceKm=haversineKm(restaurant.lat,restaurant.lng,deliveryLat,deliveryLng);
+  if (distanceKm > restaurantRadius) throw new Error('This delivery address is outside the restaurant’s configured service radius.');
   return {destinationState:destination,distanceKm,deliveryFeeKobo:calculateDeliveryFeeKobo(zone,distanceKm)};
 }
