@@ -20,6 +20,8 @@ export const deliveryListQuerySchema = z.object({
 
 export const availableDeliveriesQuerySchema = deliveryListQuerySchema;
 
+export const riderServiceAreaSchema = z.object({state:z.string().trim().min(1).max(40),lat:z.coerce.number().finite().min(-90).max(90),lng:z.coerce.number().finite().min(-180).max(180),radius_km:z.coerce.number().finite().min(1).max(100)});
+
 export const searchAgentsQuerySchema = z.object({
   phone: z.string().trim().min(3, "Provide at least 3 digits of the agent's phone number."),
 });

@@ -87,7 +87,7 @@ create table if not exists public.wallet_withdrawal_requests (
 );
 create index if not exists wallet_withdrawals_owner_idx on public.wallet_withdrawal_requests(owner_user_id,created_at desc);
 
--- Snapshot restaurant-funded delivery and configurable fees on each new order.
+-- Retain allocation snapshots for financial audit; active delivery pricing is customer-funded.
 -- No backfilling of historical money movements.
 alter table public.orders add column if not exists restaurant_delivery_cost_kobo bigint not null default 0;
 alter table public.orders add column if not exists restaurant_commission_bps integer;

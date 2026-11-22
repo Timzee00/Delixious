@@ -7,6 +7,7 @@ export const createMenuItemSchema = z.object({
   image_url: z.string().url().optional().or(z.literal('')),
   category: z.string().trim().max(50).optional(),
   is_available: z.boolean().optional().default(true),
+  extras: z.array(z.object({id:z.string().uuid().optional(),name:z.string().trim().min(1).max(80),price:z.coerce.number().finite().min(0).max(200000)})).max(20).optional().default([]),
 });
 
 export const updateMenuItemSchema = createMenuItemSchema.partial();
