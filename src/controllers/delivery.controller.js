@@ -23,7 +23,7 @@ async function loadOrderWithRestaurant(orderId) {
 }
 
 async function payoutRider(order) {
-  if (order.rider_payout_status === 'paid' || !order.rider_payout_amount) return;
+  if (order.payment_environment === 'test' || order.rider_payout_status === 'paid' || !order.rider_payout_amount) return;
 
   const { data: locked } = await supabaseAdmin
     .from('orders')
