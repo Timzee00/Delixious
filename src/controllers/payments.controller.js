@@ -82,7 +82,18 @@ async function handleSuccessfulPayment(data) {
       .select('id,restaurant_id,total_amount,restaurant_net_amount,rider_payout_amount,platform_commission')
       .eq('checkout_group_id', claimedPayment.checkout_group_id);
     if (ledgerOrdersError) throw ledgerOrdersError;
-    const journal = buildOrderPaymentJournal(claimedPayment, ledgerOrders || []);
+    const restaurantIds = [...new Set((ledgerOrders || []).map(order => order.restaurant_id))];
+    const { data: restaurantWallets, error: walletLookupError } = await supabaseAdmin
+      .from('wallet_accounts')
+      .select('id,restaurant_id')
+      .in('restaurant_id', restaurantIds);
+    if (walletLookupError) throw walletLookupError;
+    const walletByRestaurant = new Map((restaurantWallets || []).map(wallet => [wallet.restaurant_id, wallet.id]));
+    const ordersWithWallets = (ledgerOrders || []).map(order => ({
+      ...order,
+      restaurant_wallet_account_id: walletByRestaurant.get(order.restaurant_id),
+    }));
+    const journal = buildOrderPaymentJournal(claimedPayment, ordersWithWallets);
     await postFinancialJournal(journal);
 
     const { error: successError } = await supabaseAdmin
