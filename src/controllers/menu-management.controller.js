@@ -6,7 +6,7 @@ export async function getRestaurantMenuManagement(req, res, next) {
     const from = (page - 1) * limit;
     let query = supabaseAdmin
       .from('menu_items')
-      .select('id,restaurant_id,name,description,price,image_url,category,is_available,created_at', { count: 'exact' })
+      .select('id,restaurant_id,name,description,price,image_url,category,is_available,extras,created_at', { count: 'exact' })
       .eq('restaurant_id', req.restaurant.id)
       .order('category', { ascending: true })
       .order('name', { ascending: true })
