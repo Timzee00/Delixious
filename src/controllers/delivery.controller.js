@@ -92,6 +92,7 @@ async function payoutRider(order) {
     .eq('id', order.id)
     .eq('rider_payout_status', 'processing');
   if (referenceError) {
+    await supabaseAdmin.from('orders').update({ rider_payout_status: 'failed' }).eq('id', order.id).eq('rider_payout_status', 'processing');
     console.error('Unable to link rider transfer reference', { orderId: order.id, message: referenceError.message });
     return;
   }
@@ -108,6 +109,7 @@ async function payoutRider(order) {
     attempt_count: 1,
   });
   if (payoutInsertError) {
+    await supabaseAdmin.from('orders').update({ rider_payout_status: 'failed' }).eq('id', order.id).eq('rider_payout_status', 'processing');
     console.error('Rider payout queue record could not be created', { orderId: order.id, message: payoutInsertError.message });
     return;
   }
