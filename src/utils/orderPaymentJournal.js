@@ -16,13 +16,16 @@ export function buildOrderPaymentJournal(payment, orders) {
   if (paymentAmountKobo <= 0) throw new Error('Payment amount must be greater than zero.');
 
   let orderTotalKobo = 0;
-  let restaurantPayableKobo = 0;
+  const restaurantPendingByAccount = new Map();
   let riderPayableKobo = 0;
   let platformCommissionKobo = 0;
 
   const allocations = orders.map(order => {
     const totalKobo = toKobo(order.total_amount, 'order total');
     const restaurantKobo = toKobo(order.restaurant_net_amount, 'restaurant payable');
+    if (typeof order.restaurant_wallet_account_id !== 'string' || !/^[0-9a-f-]{36}$/i.test(order.restaurant_wallet_account_id)) {
+      throw new Error(`Order ${order.id} has no valid restaurant wallet account.`);
+    }
     const riderKobo = toKobo(order.rider_payout_amount, 'rider payable');
     const commissionKobo = toKobo(order.platform_commission, 'platform commission');
 
@@ -31,7 +34,8 @@ export function buildOrderPaymentJournal(payment, orders) {
     }
 
     orderTotalKobo += totalKobo;
-    restaurantPayableKobo += restaurantKobo;
+    const restaurantAccountCode = `WALLET:${order.restaurant_wallet_account_id}:pending`;
+    restaurantPendingByAccount.set(restaurantAccountCode, (restaurantPendingByAccount.get(restaurantAccountCode) || 0) + restaurantKobo);
     riderPayableKobo += riderKobo;
     platformCommissionKobo += commissionKobo;
 
@@ -40,6 +44,7 @@ export function buildOrderPaymentJournal(payment, orders) {
       restaurant_id: order.restaurant_id,
       total_kobo: totalKobo,
       restaurant_payable_kobo: restaurantKobo,
+      restaurant_wallet_account_id: order.restaurant_wallet_account_id,
       rider_payable_kobo: riderKobo,
       platform_commission_kobo: commissionKobo,
     };
@@ -51,7 +56,9 @@ export function buildOrderPaymentJournal(payment, orders) {
 
   const lines = [
     { accountCode: 'SYS:PAYSTACK_CLEARING', side: 'debit', amountKobo: paymentAmountKobo },
-    { accountCode: 'SYS:RESTAURANT_PAYABLE', side: 'credit', amountKobo: restaurantPayableKobo },
+    ...Array.from(restaurantPendingByAccount, ([accountCode, amountKobo]) => ({
+      accountCode, side: 'credit', amountKobo,
+    })),
     { accountCode: 'SYS:RIDER_PAYABLE', side: 'credit', amountKobo: riderPayableKobo },
     { accountCode: 'SYS:PLATFORM_COMMISSION_REVENUE', side: 'credit', amountKobo: platformCommissionKobo },
   ].filter(line => line.amountKobo > 0);
