@@ -1,7 +1,7 @@
 import api from './api.js';
 
 export const adminApi = {
-  getStats: () => api.get('/admin/stats'),
+  getStats: () => api.get('/admin/stats'),\n  getFinancialSummary: (params) => api.get('/admin/finance/summary', { params }),\n  listFinancialJournals: (params) => api.get('/admin/finance/journals', { params }),
   listRestaurants: (params) => api.get('/admin/restaurants', { params }),
   setRestaurantApproval: (id, status) => api.patch(`/admin/restaurants/${id}/approval`, { status }),
   listRiders: (params) => api.get('/admin/riders', { params }),
