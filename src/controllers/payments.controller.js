@@ -8,16 +8,17 @@ import { beginProviderEvent, finishProviderEvent } from '../utils/providerEventI
 import { buildOrderPaymentJournal } from '../utils/orderPaymentJournal.js';
 import { postFinancialJournal } from '../services/financialLedger.js';
 
-async function handleSuccessfulPayment(data) {
+async function handleSuccessfulPayment(data, { retryBusy = false } = {}) {
   const reference = data.reference;
 
-  const { data: payment } = await supabaseAdmin
+  const { data: payment, error: paymentLookupError } = await supabaseAdmin
     .from('payments')
     .select('*')
     .eq('reference', reference)
     .maybeSingle();
 
-  if (!payment) return;
+  if (paymentLookupError) throw paymentLookupError;
+  if (!payment) throw new Error('Verified Paystack charge has no matching Delixious payment record. Manual reconciliation is required.');
 
   // A valid webhook signature proves the source, not the price. Validate
   // reference, exact NGN amount in kobo and currency before fulfillment.
@@ -38,16 +39,41 @@ async function handleSuccessfulPayment(data) {
 
   // Atomically claim the payment so duplicate webhooks/verification calls do
   // not issue duplicate notifications or race the order state transition.
-  const { data: claimedPayment, error: claimError } = await supabaseAdmin
-    .from('payments')
-    .update({ status: 'processing', raw_response: data })
-    .eq('id', payment.id)
-    .in('status', ['pending', 'failed'])
-    .select('*')
-    .maybeSingle();
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const staleBefore = new Date(now.getTime() - 5 * 60 * 1000).toISOString();
+  let claimQuery = supabaseAdmin.from('payments')
+    .update({ status: 'processing', processing_started_at: nowIso, updated_at: nowIso, raw_response: data })
+    .eq('id', payment.id);
 
+  if (payment.status === 'pending' || payment.status === 'failed') {
+    claimQuery = claimQuery.in('status', ['pending', 'failed']);
+  } else if (payment.status === 'processing') {
+    if (payment.processing_started_at && Date.parse(payment.processing_started_at) >= Date.parse(staleBefore)) {
+      if (retryBusy) {
+        const busyError = new Error('Payment finalization is already running. Paystack should retry this event.');
+        busyError.code = 'PAYMENT_PROCESSING_BUSY';
+        throw busyError;
+      }
+      return;
+    }
+    claimQuery = payment.processing_started_at
+      ? claimQuery.eq('status', 'processing').lt('processing_started_at', staleBefore)
+      : claimQuery.eq('status', 'processing').is('processing_started_at', null);
+  } else {
+    return;
+  }
+
+  const { data: claimedPayment, error: claimError } = await claimQuery.select('*').maybeSingle();
   if (claimError) throw claimError;
-  if (!claimedPayment) return;
+  if (!claimedPayment) {
+    if (retryBusy) {
+      const busyError = new Error('Payment finalization was claimed by another request. Paystack should retry this event.');
+      busyError.code = 'PAYMENT_PROCESSING_BUSY';
+      throw busyError;
+    }
+    return;
+  }
 
   let newlyPaidOrders = [];
   try {
@@ -79,7 +105,7 @@ async function handleSuccessfulPayment(data) {
     // on the next verified webhook delivery.
     const { data: ledgerOrders, error: ledgerOrdersError } = await supabaseAdmin
       .from('orders')
-      .select('id,restaurant_id,total_amount,restaurant_net_amount,rider_payout_amount,platform_commission')
+      .select('id,user_id,restaurant_id,total_amount,restaurant_net_amount,rider_payout_amount,platform_commission')
       .eq('checkout_group_id', claimedPayment.checkout_group_id);
     if (ledgerOrdersError) throw ledgerOrdersError;
     const restaurantIds = [...new Set((ledgerOrders || []).map(order => order.restaurant_id))];
@@ -98,7 +124,7 @@ async function handleSuccessfulPayment(data) {
 
     const { error: successError } = await supabaseAdmin
       .from('payments')
-      .update({ status: 'success', raw_response: data })
+      .update({ status: 'success', processing_started_at: null, updated_at: new Date().toISOString(), raw_response: data })
       .eq('id', claimedPayment.id)
       .eq('status', 'processing');
     if (successError) throw successError;
@@ -106,7 +132,7 @@ async function handleSuccessfulPayment(data) {
     // Retry on Paystack webhook redelivery if the database was unavailable.
     // Never undo already-confirmed customer charges.
     await supabaseAdmin.from('payments')
-      .update({ status: 'pending' })
+      .update({ status: 'pending', processing_started_at: null, updated_at: new Date().toISOString() })
       .eq('id', claimedPayment.id)
       .eq('status', 'processing');
     throw err;
@@ -114,7 +140,7 @@ async function handleSuccessfulPayment(data) {
 
   // Non-financial tasks are best-effort and must not roll back a verified
   // payment or cause the webhook to claim the customer was not charged.
-  for (const order of newlyPaidOrders) {
+  for (const order of ledgerOrders) {
     try {
       await removePurchasedCartLines(supabaseAdmin, order);
     } catch (err) {
@@ -195,11 +221,14 @@ export async function paystackWebhook(req, res, next) {
     const eventName = req.body?.event;
     const eventData = req.body?.data;
     const inbox = await beginProviderEvent(eventName, eventData, req.rawBody);
-    if (!inbox.claimed) return res.sendStatus(200);
+    if (!inbox.claimed) {
+      if (inbox.busy) return res.status(503).json({ error: 'This payment event is still being processed. Please retry.' });
+      return res.sendStatus(200);
+    }
 
     try {
       if (eventName === 'charge.success') {
-        await handleSuccessfulPayment(eventData);
+        await handleSuccessfulPayment(eventData, { retryBusy: true });
         await finishProviderEvent(inbox.id, 'processed');
       } else if (['transfer.success', 'transfer.failed', 'transfer.reversed'].includes(eventName)) {
         await handleRiderTransferEvent(eventName, eventData);
