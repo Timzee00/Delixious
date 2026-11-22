@@ -16,6 +16,7 @@ export const createRestaurantSchema = z.object({
   state: z.string().trim().min(2).max(40).optional(),
   lat: z.coerce.number().finite().min(-90).max(90).optional(),
   lng: z.coerce.number().finite().min(-180).max(180).optional(),
+  service_radius_km: z.coerce.number().finite().min(1).max(300).optional(),
   logo_url: z.string().url().optional().or(z.literal('')),
   cover_image_url: z.string().url().optional().or(z.literal('')),
 });
