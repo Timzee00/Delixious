@@ -94,6 +94,7 @@ export async function checkout(req,res,next) {
   try {
     const result=await buildCheckoutQuote(req.user.id,req.body);
     const checkoutGroupId=uuidv4(),createdOrders=[],splitSubaccounts=[];
+    const paymentEnvironment = process.env.PAYSTACK_SECRET_KEY?.startsWith('sk_test_') ? 'test' : 'live';
     for(const row of result.prepared) {
       const {restaurant,itemRows,foodKobo,deliveryKobo,distanceKm,allocation}=row;
       const {data:order,error:orderError}=await supabaseAdmin.from('orders').insert({
@@ -105,7 +106,7 @@ export async function checkout(req,res,next) {
         customer_delivery_fee_kobo:deliveryKobo,delivery_distance_km:Number(distanceKm.toFixed(3)),
         delivery_zone_state:result.state,destination_state:result.state,
         delivery_address:req.body.delivery_address.trim(),delivery_lat:Number(req.body.delivery_lat),delivery_lng:Number(req.body.delivery_lng),
-        payment_status:'pending',checkout_group_id:checkoutGroupId,restaurant_paystack_subaccount_code:restaurant.paystack_subaccount_code,
+        payment_status:'pending',payment_environment:paymentEnvironment,checkout_group_id:checkoutGroupId,restaurant_paystack_subaccount_code:restaurant.paystack_subaccount_code,
       }).select().single();
       if(orderError)throw orderError;
       const {error:itemError}=await supabaseAdmin.from('order_items').insert(itemRows.map(item=>({...item,order_id:order.id})));
@@ -116,7 +117,7 @@ export async function checkout(req,res,next) {
       splitSubaccounts.push({subaccount:restaurant.paystack_subaccount_code,shareKobo:allocation.restaurantShareKobo});
     }
     const reference=`delixious_${uuidv4()}`;
-    const {error:paymentError}=await supabaseAdmin.from('payments').insert({checkout_group_id:checkoutGroupId,provider:'paystack',reference,amount:result.grandTotalKobo/100,status:'pending'});
+    const {error:paymentError}=await supabaseAdmin.from('payments').insert({checkout_group_id:checkoutGroupId,provider:'paystack',reference,amount:result.grandTotalKobo/100,status:'pending',payment_environment:paymentEnvironment});
     if(paymentError)throw paymentError;
     let paystackResponse;
     try {
