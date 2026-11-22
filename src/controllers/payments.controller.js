@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { supabaseAdmin } from '../config/supabase.js';
 import { verifyTransaction, listBanks } from '../utils/paystack.js';
-import { assertVerifiedPaystackPayment, assertPaystackSplitMatchesOrders } from '../utils/paymentValidation.js';
+import { assertVerifiedPaystackPayment, assertPaystackSplitMatchesOrders, assertPaystackPaymentEnvironment } from '../utils/paymentValidation.js';
 import { assertMatchingRiderTransfer } from '../utils/transferValidation.js';
 import { removePurchasedCartLines } from '../utils/paidCartCleanup.js';
 import { beginProviderEvent, finishProviderEvent } from '../utils/providerEventInbox.js';
@@ -34,12 +34,8 @@ export async function handleSuccessfulPayment(data, { retryBusy = false, already
     split: verifiedResponse.data.split || data.split,
   };
   assertVerifiedPaystackPayment(transaction, payment);
-  const providerEnvironment = transaction.domain;
-  if (!['test','live'].includes(providerEnvironment) || providerEnvironment !== payment.payment_environment) {
-    const environmentError = new Error('Paystack payment environment does not match the environment recorded at checkout.');
-    environmentError.code = 'PAYMENT_ENVIRONMENT_MISMATCH';
-    throw environmentError;
-  }
+  assertPaystackPaymentEnvironment(transaction,payment);
+  const providerEnvironment=transaction.domain;
 
   const { data: checkoutOrders, error: checkoutError } = await supabaseAdmin
     .from('orders')
