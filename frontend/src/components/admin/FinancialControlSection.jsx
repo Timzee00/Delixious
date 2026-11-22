@@ -1,0 +1,120 @@
+import { useCallback, useEffect, useState } from 'react';
+import { adminApi } from '../../lib/adminApi.js';
+import Icon from '../ui/Icon.jsx';
+
+const money = value => new Intl.NumberFormat('en-NG', {
+  style: 'currency', currency: 'NGN', maximumFractionDigits: 2,
+}).format(Number(value || 0) / 100);
+
+function Metric({ label, value, note, tone = 'default' }) {
+  return (
+    <div className="rounded-2xl border border-hairline bg-paper p-4 sm:p-5">
+      <p className="text-xs font-medium text-ink-soft">{label}</p>
+      <p className={`mt-2 break-words font-display text-2xl font-bold tracking-tight ${tone === 'danger' ? 'text-danger' : 'text-ink'}`}>{value}</p>
+      {note && <p className="mt-2 text-xs leading-5 text-ink-soft">{note}</p>}
+    </div>
+  );
+}
+
+export default function FinancialControlSection() {
+  const [summary, setSummary] = useState(null);
+  const [journals, setJournals] = useState([]);
+  const [cursor, setCursor] = useState(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState('');
+
+  const loadSummary = useCallback(async () => {
+    const { data } = await adminApi.getFinancialSummary({ days: 30 });
+    setSummary(data.summary || null);
+  }, []);
+
+  const loadJournals = useCallback(async (nextCursor = null, append = false) => {
+    if (append) setLoadingMore(true);
+    else setLoading(true);
+    setError('');
+    try {
+      const { data } = await adminApi.listFinancialJournals({ limit: 25, ...(nextCursor ? { cursor: nextCursor } : {}) });
+      setJournals(current => append ? [...current, ...(data.journals || [])] : (data.journals || []));
+      setCursor(data.next_cursor || null);
+      setHasMore(Boolean(data.has_more));
+    } catch (err) {
+      setError(err.response?.data?.error || 'Could not load financial records.');
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }, []);
+
+  const refresh = useCallback(async () => {
+    setError('');
+    try { await loadSummary(); } catch (err) {
+      setError(err.response?.data?.error || 'Could not load financial summary.');
+    }
+    await loadJournals();
+  }, [loadSummary, loadJournals]);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const accountBalance = code => Number(summary?.system_accounts?.find(item => item.account_code === code)?.balance_kobo || 0);
+  const payoutQueue = summary?.payout_queue || {};
+
+  return (
+    <section className="space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-pepper">FINANCIAL OPERATIONS</p>
+          <h2 className="mt-1 font-display text-2xl font-bold text-ink">Financial control centre</h2>
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-ink-soft">Read-only financial oversight. Every posted journal must balance; payout and wallet funding controls remain locked until provider and settlement checks are complete.</p>
+        </div>
+        <button type="button" onClick={refresh} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-hairline bg-paper px-3 py-2 text-sm font-semibold text-ink hover:border-pepper">
+          <Icon name="refresh" size={16}/> Refresh
+        </button>
+      </div>
+
+      {error && <div role="alert" className="rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div>}
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Metric label="Posted journals" value={Number(summary?.total_journals || 0).toLocaleString('en-NG')} note="All-time immutable accounting records"/>
+        <Metric label="Platform commission ledger" value={money(accountBalance('SYS:PLATFORM_COMMISSION_REVENUE'))} note="Ledger balance, not necessarily bank cash"/>
+        <Metric label="Restaurant payable control" value={money(accountBalance('SYS:RESTAURANT_PAYABLE'))} note="Amount recorded as owed to restaurants"/>
+        <Metric label="Rider payable control" value={money(accountBalance('SYS:RIDER_PAYABLE'))} note="Amount recorded as owed to riders"/>
+        <Metric label="Paystack clearing" value={money(accountBalance('SYS:PAYSTACK_CLEARING'))} note="Provider clearing control account"/>
+        <Metric label="Failed payouts" value={Number(payoutQueue.failed || 0).toLocaleString('en-NG')} note="Requires reconciliation before retry" tone={payoutQueue.failed ? 'danger' : 'default'}/>
+        <Metric label="Unbalanced journals" value={Number(summary?.unbalanced_journals || 0).toLocaleString('en-NG')} note="Must remain zero" tone={summary?.unbalanced_journals ? 'danger' : 'default'}/>
+        <Metric label="Recent journals (30 days)" value={Number(summary?.recent_journals || 0).toLocaleString('en-NG')} note="Bounded reporting window"/>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        {['available','pending','held'].map(bucket => (
+          <div key={bucket} className="rounded-xl border border-hairline bg-paper px-4 py-3">
+            <p className="text-xs capitalize text-ink-soft">Wallet {bucket}</p>
+            <p className="mt-1 font-display text-xl font-bold text-ink">{money(summary?.wallet_buckets?.[bucket])}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="overflow-hidden rounded-2xl border border-hairline bg-paper">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline p-4 sm:p-5">
+          <div><h3 className="font-display text-lg font-semibold text-ink">Financial journal history</h3><p className="mt-1 text-xs text-ink-soft">Newest first · 25 records per request · cursor pagination</p></div>
+          <span className="rounded-full border border-hairline px-3 py-1 text-xs font-medium text-ink-soft">NGN · Read only</span>
+        </div>
+        {loading ? <div role="status" className="p-8 text-center text-sm text-ink-soft">Loading financial records…</div> : !journals.length ? (
+          <div className="p-9 text-center"><Icon name="receipt" size={28} className="mx-auto text-ink-soft"/><p className="mt-3 font-semibold text-ink">No posted journals yet</p><p className="mx-auto mt-1 max-w-md text-sm leading-6 text-ink-soft">The accounting ledger is ready, but order-to-ledger posting is not activated. No historic orders or Paystack transfers have been converted into wallet funds.</p></div>
+        ) : (
+          <div className="divide-y divide-hairline">
+            {journals.map(journal => (
+              <article key={journal.id} className="grid gap-2 px-4 py-4 sm:grid-cols-[minmax(0,1.4fr)_minmax(120px,0.7fr)_150px] sm:items-center sm:gap-4 sm:px-5">
+                <div className="min-w-0"><p className="truncate text-sm font-semibold text-ink">{journal.description || journal.source_type.replace(/_/g,' ')}</p><p className="mt-1 truncate font-mono text-[11px] text-ink-soft">{journal.source_type} · {journal.source_id || journal.id.slice(0,8)}</p></div>
+                <div><p className="text-sm font-semibold text-ink">{money(journal.debit_total_kobo)}</p><p className="text-[11px] text-ink-soft">{journal.line_count} ledger lines</p></div>
+                <time className="text-xs text-ink-soft">{new Date(journal.created_at).toLocaleString('en-NG')}</time>
+              </article>
+            ))}
+          </div>
+        )}
+        {hasMore && <div className="border-t border-hairline p-4 text-center"><button type="button" disabled={loadingMore} onClick={() => loadJournals(cursor,true)} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-hairline px-4 py-2 text-sm font-semibold text-ink disabled:opacity-60">{loadingMore ? 'Loading…' : 'Load older records'} <Icon name="chevron-down" size={16}/></button></div>}
+      </div>
+    </section>
+  );
+}
