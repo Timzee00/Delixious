@@ -19,6 +19,8 @@ function Metric({ label, value, note, tone = 'default' }) {
 export default function FinancialControlSection() {
   const [summary, setSummary] = useState(null);
   const [health, setHealth] = useState(null);
+  const [reconciling, setReconciling] = useState(false);
+  const [reconcileMessage, setReconcileMessage] = useState('');
   const [journals, setJournals] = useState([]);
   const [payouts, setPayouts] = useState([]);
   const [events, setEvents] = useState([]);
@@ -122,6 +124,21 @@ export default function FinancialControlSection() {
     await Promise.all([loadJournals(), loadQueues()]);
   }, [loadSummary, loadJournals, loadQueues]);
 
+  const runPaymentReconciliation = useCallback(async () => {
+    setReconciling(true);
+    setReconcileMessage('');
+    try {
+      const { data } = await adminApi.reconcilePendingPayments();
+      const r = data.results || {};
+      setReconcileMessage(`Checked ${r.checked || 0}: finalized ${r.finalized || 0}, failed ${r.failed || 0}, still pending ${r.still_pending || 0}, requiring review ${r.needs_review || 0}.`);
+      await refresh();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Payment reconciliation could not be completed.');
+    } finally {
+      setReconciling(false);
+    }
+  }, [refresh]);
+
   useEffect(() => { refresh(); }, [refresh]);
 
   const accountBalance = code => Number(summary?.system_accounts?.find(item => item.account_code === code)?.balance_kobo || 0);
@@ -136,12 +153,18 @@ export default function FinancialControlSection() {
           <h2 className="mt-1 font-display text-2xl font-bold text-ink">Financial control centre</h2>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-ink-soft">Read-only financial oversight. Every posted journal must balance; payout and wallet funding controls remain locked until provider and settlement checks are complete.</p>
         </div>
-        <button type="button" onClick={refresh} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-hairline bg-paper px-3 py-2 text-sm font-semibold text-ink hover:border-pepper">
-          <Icon name="refresh" size={16}/> Refresh
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={runPaymentReconciliation} disabled={reconciling} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-hairline bg-paper px-3 py-2 text-sm font-semibold text-ink hover:border-pepper disabled:opacity-50">
+            <Icon name="refresh" size={16}/> {reconciling ? 'Reconciling…' : 'Reconcile pending payments'}
+          </button>
+          <button type="button" onClick={refresh} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-hairline bg-paper px-3 py-2 text-sm font-semibold text-ink hover:border-pepper">
+            <Icon name="refresh" size={16}/> Refresh
+          </button>
+        </div>
       </div>
 
       {error && <div role="alert" className="rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div>}
+      {reconcileMessage && <div role="status" className="rounded-xl border border-hairline bg-paper px-4 py-3 text-sm text-ink">{reconcileMessage}</div>}
 
       <section className="rounded-2xl border border-hairline bg-paper p-4 sm:p-5" aria-live="polite">
         <div className="flex flex-wrap items-center justify-between gap-3">
