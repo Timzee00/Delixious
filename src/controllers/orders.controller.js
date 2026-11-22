@@ -105,7 +105,7 @@ export async function checkout(req,res,next) {
         customer_delivery_fee_kobo:deliveryKobo,delivery_distance_km:Number(distanceKm.toFixed(3)),
         delivery_zone_state:result.state,destination_state:result.state,
         delivery_address:req.body.delivery_address.trim(),delivery_lat:Number(req.body.delivery_lat),delivery_lng:Number(req.body.delivery_lng),
-        payment_status:'pending',checkout_group_id:checkoutGroupId,
+        payment_status:'pending',checkout_group_id:checkoutGroupId,restaurant_paystack_subaccount_code:restaurant.paystack_subaccount_code,
       }).select().single();
       if(orderError)throw orderError;
       const {error:itemError}=await supabaseAdmin.from('order_items').insert(itemRows.map(item=>({...item,order_id:order.id})));
