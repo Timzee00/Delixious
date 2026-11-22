@@ -152,7 +152,7 @@ export default function Wallet() {
       {overview && (
         <div className="mt-6 flex items-start gap-3 rounded-xl border border-hairline bg-paper px-4 py-3">
           <Icon name="info" className="mt-0.5 shrink-0 text-pepper" size={19} />
-          <p className="text-sm leading-6 text-ink-soft">Wallet setup is in progress. Balances shown here are ledger balances, not bank deposits. Funding, wallet payments and withdrawals will be activated after the payment-provider integration.</p>
+          <p className="text-sm leading-6 text-ink-soft">Balances shown here are accounting records, not bank deposits. Customer payments are made directly through Paystack; Delixious does not offer customer stored-value balances.</p>
         </div>
       )}
 
@@ -195,10 +195,15 @@ export default function Wallet() {
             <InfoCard label="On hold" icon="lock" value={formatNaira(wallet.held_kobo)} note="Reserved or under review" />
           </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-3">
-            <Action icon="arrowDown" label="Add money" note="Coming after account activation" enabled={canFund} />
-            <Action icon="arrowUp" label="Withdraw" note={verified ? 'Coming after account activation' : 'Financial verification required'} enabled={canWithdraw} />
-          </div>
+          {wallet.kind === 'customer' ? (
+            <div className="mt-5 rounded-xl border border-hairline bg-paper px-4 py-3 text-sm leading-6 text-ink-soft">
+              Customer payments are charged per order through Paystack. Refunds are handled against the original payment; this account cannot be funded or used to transfer money.
+            </div>
+          ) : (
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:max-w-sm">
+              <Action icon="arrowUp" label="Request payout" note={verified ? 'Payouts are locked until settlement controls are certified' : 'Financial verification required'} enabled={canWithdraw} />
+            </div>
+          )}
 
           <div className="mt-6 grid items-start gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(280px,1fr)]">
             <section className="min-w-0 overflow-hidden rounded-2xl border border-hairline bg-paper" aria-labelledby="activity-title">
