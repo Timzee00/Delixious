@@ -3,6 +3,7 @@ import api from './api.js';
 export const adminApi = {
   getStats: () => api.get('/admin/stats'),
   getFinancialSummary: (params) => api.get('/admin/finance/summary', { params }),
+  getFinancialHealth: () => api.get('/admin/finance/health'),
   listFinancialJournals: (params) => api.get('/admin/finance/journals', { params }),
   listFinancialPayouts: (params) => api.get('/admin/finance/payouts', { params }),
   listProviderEvents: (params) => api.get('/admin/finance/events', { params }),
