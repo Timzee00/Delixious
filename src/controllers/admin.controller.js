@@ -18,7 +18,7 @@ export async function listRestaurantsAdmin(req, res, next) {
 
     let query = supabaseAdmin
       .from('restaurants')
-      .select('id,name,cuisine_type,address,state,lat,lng,service_area_verified,approval_status,owner_id,created_at', { count: 'exact' })
+      .select('id,name,cuisine_type,address,state,lat,lng,service_radius_km,service_area_verified,approval_status,owner_id,created_at', { count: 'exact' })
       .order('created_at', { ascending: false })
       .order('id', { ascending: true })
       .range(from, to);
@@ -36,9 +36,9 @@ export async function listRestaurantsAdmin(req, res, next) {
 export async function setRestaurantApproval(req, res, next) {
   try {
     if (req.body.status === 'approved') {
-      const { data: current, error: lookupError } = await supabaseAdmin.from('restaurants').select('state,lat,lng').eq('id',req.params.id).single();
+      const { data: current, error: lookupError } = await supabaseAdmin.from('restaurants').select('state,lat,lng,service_radius_km').eq('id',req.params.id).single();
       if (lookupError) throw lookupError;
-      if (!current?.state || current.lat == null || current.lng == null) return res.status(400).json({ error: 'Restaurant must submit its state and map coordinates before service-area verification.' });
+      if (!current?.state || current.lat == null || current.lng == null || !current.service_radius_km) return res.status(400).json({ error: 'Restaurant must submit its state, map coordinates and service radius before service-area verification.' });
     }
     const { data, error } = await supabaseAdmin
       .from('restaurants')
