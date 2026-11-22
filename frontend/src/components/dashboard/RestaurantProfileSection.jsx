@@ -7,6 +7,7 @@ import Icon from '../ui/Icon.jsx';
 import { Button, InlineStatus } from '../ui/Primitives.jsx';
 import { BUSINESS_TYPES } from '../../data/businessTypes.js';
 
+const STATES = ['Abia','Adamawa','Akwa Ibom','Anambra','Bauchi','Bayelsa','Benue','Borno','Cross River','Delta','Ebonyi','Edo','Ekiti','Enugu','FCT','Gombe','Imo','Jigawa','Kaduna','Kano','Katsina','Kebbi','Kogi','Kwara','Lagos','Nasarawa','Niger','Ogun','Ondo','Osun','Oyo','Plateau','Rivers','Sokoto','Taraba','Yobe','Zamfara'];
 const CUISINES = ['Nigerian', 'Continental', 'Chinese', 'Fast Food', 'Grills', 'Seafood', 'Pastries', 'Other'];
 
 export default function RestaurantProfileSection({ restaurant, onCreated, onUpdated }) {
@@ -17,6 +18,9 @@ export default function RestaurantProfileSection({ restaurant, onCreated, onUpda
     cuisine_type: restaurant?.cuisine_type || CUISINES[0],
     business_types: Array.isArray(restaurant?.business_types) && restaurant.business_types.length ? restaurant.business_types : ['restaurant'],
     address: restaurant?.address || '',
+    state: restaurant?.state || '',
+    lat: restaurant?.lat ?? '',
+    lng: restaurant?.lng ?? '',
     logo_url: restaurant?.logo_url || '',
     cover_image_url: restaurant?.cover_image_url || '',
   });
@@ -33,11 +37,13 @@ export default function RestaurantProfileSection({ restaurant, onCreated, onUpda
   async function handleSubmit(e) {
     e.preventDefault();
     if (!form.name.trim() || !form.address.trim()) { setError('Business name and address are required.'); return; }
+    if (isEdit && (!form.state || form.lat === '' || form.lng === '')) { setError('Add the operating state and exact map coordinates to submit your delivery area.'); return; }
     if (!form.business_types.length || form.business_types.length > 3) { setError('Choose between one and three business types.'); return; }
     setSaving(true); setError(''); setMessage('');
     try {
-      if (isEdit) { const { data } = await api.put(`/restaurants/${restaurant.id}`, form); onUpdated(data.restaurant); setMessage('Business details saved.'); }
-      else { const { data } = await api.post('/restaurants', form); onCreated(data.restaurant); setMessage('Food business created.'); }
+      const payload = { ...form, ...(form.lat !== '' ? { lat: Number(form.lat) } : {}), ...(form.lng !== '' ? { lng: Number(form.lng) } : {}) };
+      if (isEdit) { const { data } = await api.put(`/restaurants/${restaurant.id}`, payload); onUpdated(data.restaurant); setMessage('Business details saved.'); }
+      else { const { data } = await api.post('/restaurants', payload); onCreated(data.restaurant); setMessage('Food business created.'); }
     } catch (err) { setError(err.response?.data?.error || 'Could not save your food business.'); }
     finally { setSaving(false); }
   }
@@ -177,6 +183,21 @@ export default function RestaurantProfileSection({ restaurant, onCreated, onUpda
           </fieldset>
           <div><span className="mb-1 block text-sm font-medium text-ink">Cuisine type</span><select value={form.cuisine_type} onChange={(e) => setForm({ ...form, cuisine_type: e.target.value })} className="w-full rounded-lg border border-hairline bg-paper px-3 py-2 text-ink focus:border-pepper">{CUISINES.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
           <div><FormField label="Address" value={form.address} onChange={(v) => setForm({ ...form, address: v })} required /></div>
+          <div className="md:col-span-2 rounded-xl border border-hairline bg-sand/40 p-4">
+            <h3 className="text-sm font-semibold text-ink">Delivery operating location</h3>
+            <p className="mt-1 text-xs leading-5 text-ink-soft">Set the state and coordinates for your restaurant’s verified delivery base. Changing these details requires administrator re-verification before checkout is enabled.</p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              <label className="block text-sm font-medium text-ink">Operating state
+                <select value={form.state} onChange={event => setForm(current => ({...current,state:event.target.value}))} className="mt-1.5 min-h-11 w-full rounded-lg border border-hairline bg-paper px-3 text-sm">
+                  <option value="">Select state</option>{STATES.map(value => <option key={value} value={value}>{value}</option>)}
+                </select>
+              </label>
+              <FormField label="Latitude" type="number" value={String(form.lat)} onChange={value => setForm(current => ({...current,lat:value}))} />
+              <FormField label="Longitude" type="number" value={String(form.lng)} onChange={value => setForm(current => ({...current,lng:value}))} />
+            </div>
+            {restaurant?.service_area_verified && <p className="mt-3 text-xs font-semibold text-jade">Delivery base verified by an administrator.</p>}
+            {!restaurant?.service_area_verified && <p className="mt-3 text-xs text-ink-soft">The service area is not yet verified. An administrator must approve it.</p>}
+          </div>
           <div className="md:col-span-2"><FormField label="Description" as="textarea" rows={4} value={form.description} onChange={(v) => setForm({ ...form, description: v })} placeholder="Tell customers what makes your restaurant and food worth trying." /></div>
         </div>
 
