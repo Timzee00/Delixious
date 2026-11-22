@@ -3,6 +3,7 @@ import { adminApi } from '../lib/adminApi.js';
 import StatsSection from '../components/admin/StatsSection.jsx';
 import RestaurantsApprovalSection from '../components/admin/RestaurantsApprovalSection.jsx';
 import RidersApprovalSection from '../components/admin/RidersApprovalSection.jsx';
+import DeliveryZonesSection from '../components/admin/DeliveryZonesSection.jsx';
 import UsersSection from '../components/admin/UsersSection.jsx';
 import BroadcastSection from '../components/admin/BroadcastSection.jsx';
 import PaginationControls from '../components/ui/PaginationControls.jsx';
@@ -13,6 +14,7 @@ const TABS = [
   { id: 'Overview', label: 'Overview', icon: 'chart-no-axes-column' },
   { id: 'Restaurants', label: 'Restaurants', icon: 'store-front' },
   { id: 'Riders', label: 'Riders', icon: 'bike' },
+  { id: 'Delivery zones', label: 'Delivery zones', icon: 'map' },
   { id: 'Users', label: 'Users', icon: 'users' },
   { id: 'Orders', label: 'Orders', icon: 'clipboard-list' },
   { id: 'Broadcast', label: 'Broadcast', icon: 'bell' },
@@ -119,6 +121,7 @@ export default function Admin() {
         {tab === 'Overview' && <StatsSection/>}
         {tab === 'Restaurants' && <RestaurantsApprovalSection/>}
         {tab === 'Riders' && <RidersApprovalSection/>}
+        {tab === 'Delivery zones' && <DeliveryZonesSection/>}
         {tab === 'Users' && <UsersSection/>}
         {tab === 'Orders' && <AdminOrdersSection/>}
         {tab === 'Broadcast' && <BroadcastSection/>}
