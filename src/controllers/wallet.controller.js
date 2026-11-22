@@ -67,13 +67,32 @@ export async function walletOverview(req, res, next) {
   } catch (err) { next(err); }
 }
 
+function encodeWalletCursor(row) {
+  return Buffer.from(JSON.stringify({ created_at: row.created_at, id: row.id })).toString('base64url');
+}
+
+function decodeWalletCursor(value) {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(Buffer.from(value, 'base64url').toString('utf8'));
+    if (!parsed || typeof parsed.created_at !== 'string' ||
+        !Number.isFinite(Date.parse(parsed.created_at)) ||
+        typeof parsed.id !== 'string' ||
+        !/^[0-9a-f-]{36}$/i.test(parsed.id)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 export async function walletActivity(req, res, next) {
   try {
     const { wallet_id } = req.query;
-    const page = Math.min(100, Math.max(1, Number(req.query.page) || 1));
-    const limit = 15;
+    const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 15));
+    const cursor = decodeWalletCursor(req.query.cursor);
+    if (req.query.cursor && !cursor) return res.status(400).json({ error: 'Invalid wallet activity cursor.' });
 
-    // Explicit account ownership check; the server Supabase service role bypasses RLS.
+    // Explicit ownership check is required because this API uses the service role.
     const accountQuery = supabaseAdmin.from('wallet_accounts').select('id')
       .eq('owner_user_id', req.user.id);
     const { data: account, error: accountError } = wallet_id
@@ -82,14 +101,22 @@ export async function walletActivity(req, res, next) {
     if (accountError) throw accountError;
     if (!account) return res.status(404).json({ error: 'Wallet not found.' });
 
-    const { data, error, count } = await supabaseAdmin.from('financial_journal_lines')
-      .select('id,side,amount_kobo,created_at,financial_accounts!inner(wallet_account_id,wallet_bucket),financial_journals!inner(id,source_type,source_id,description,idempotency_key)', { count: 'exact' })
+    let query = supabaseAdmin.from('financial_journal_lines')
+      .select('id,side,amount_kobo,created_at,financial_accounts!inner(wallet_account_id,wallet_bucket),financial_journals!inner(id,source_type,source_id,description,idempotency_key)')
       .eq('financial_accounts.wallet_account_id', account.id)
       .order('created_at', { ascending: false })
       .order('id', { ascending: false })
-      .range((page - 1) * limit, page * limit - 1);
+      .limit(limit + 1);
+    if (cursor) {
+      query = query.or(`created_at.lt.${cursor.created_at},and(created_at.eq.${cursor.created_at},id.lt.${cursor.id})`);
+    }
+
+    const { data, error } = await query;
     if (error) throw error;
-    const activity = (data || []).map(entry => ({
+    const rows = data || [];
+    const hasMore = rows.length > limit;
+    const pageRows = rows.slice(0, limit);
+    const activity = pageRows.map(entry => ({
       id: entry.id,
       delta_kobo: entry.side === 'credit' ? Number(entry.amount_kobo) : -Number(entry.amount_kobo),
       created_at: entry.created_at,
@@ -100,8 +127,15 @@ export async function walletActivity(req, res, next) {
         provider_reference: entry.financial_journals?.source_id,
       },
     }));
+    const last = pageRows[pageRows.length - 1];
     res.set('Cache-Control', 'private, no-store');
-    res.json({ wallet_id: account.id, activity, total: count || 0, page, limit });
+    res.json({
+      wallet_id: account.id,
+      activity,
+      has_more: hasMore,
+      next_cursor: hasMore && last ? encodeWalletCursor(last) : null,
+      limit,
+    });
   } catch (err) { next(err); }
 }
 
