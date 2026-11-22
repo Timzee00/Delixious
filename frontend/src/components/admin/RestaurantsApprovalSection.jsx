@@ -71,6 +71,7 @@ export default function RestaurantsApprovalSection() {
                 <p className="font-semibold text-ink">{r.name}</p>
                 <p className="mt-1 text-sm text-ink-soft">{r.address || 'Address not supplied'}</p>
                 <p className="mt-1 text-xs capitalize text-ink-soft">{(r.business_types || ['restaurant']).map(businessTypeLabel).join(' · ')} · {r.approval_status}</p>
+                <p className="mt-1 text-xs text-ink-soft">Operating area: {r.state || 'State missing'} · Coordinates: {r.lat ?? '—'}, {r.lng ?? '—'} · {r.service_area_verified ? 'Verified' : 'Not verified'}</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 {r.approval_status !== 'approved' && <button type="button" disabled={busyId === r.id} onClick={() => setApproval(r.id, 'approved')} className="min-h-10 rounded-lg bg-jade px-3 text-sm font-semibold text-white disabled:opacity-50">{busyId === r.id ? 'Saving…' : 'Approve'}</button>}
