@@ -34,13 +34,19 @@ async function handleSuccessfulPayment(data, { retryBusy = false, alreadyVerifie
     split: verifiedResponse.data.split || data.split,
   };
   assertVerifiedPaystackPayment(transaction, payment);
+  const providerEnvironment = transaction.domain;
+  if (!['test','live'].includes(providerEnvironment) || providerEnvironment !== payment.payment_environment) {
+    const environmentError = new Error('Paystack payment environment does not match the environment recorded at checkout.');
+    environmentError.code = 'PAYMENT_ENVIRONMENT_MISMATCH';
+    throw environmentError;
+  }
 
   const { data: checkoutOrders, error: checkoutError } = await supabaseAdmin
     .from('orders')
     .select('id, status, payment_status, restaurant_net_amount, restaurant_paystack_subaccount_code')
     .eq('checkout_group_id', payment.checkout_group_id);
   if (checkoutError) throw checkoutError;
-  assertPaystackSplitMatchesOrders(transaction, checkoutOrders || []);
+  if (providerEnvironment === 'live') assertPaystackSplitMatchesOrders(transaction, checkoutOrders || []);
   if (!checkoutOrders?.length || checkoutOrders.some((order) =>
     order.status === 'cancelled' || order.payment_status === 'refunded')) {
     // Never silently resurrect cancelled/refunded orders when a late charge
@@ -91,7 +97,7 @@ async function handleSuccessfulPayment(data, { retryBusy = false, alreadyVerifie
   try {
     const { data: orders, error: ordersError } = await supabaseAdmin
       .from('orders')
-      .update({ payment_status: 'paid', status: 'confirmed' })
+      .update({ payment_status: 'paid', payment_environment: claimedPayment.payment_environment, status: 'confirmed' })
       .eq('checkout_group_id', claimedPayment.checkout_group_id)
       .in('payment_status', ['pending', 'failed'])
       .select();
@@ -133,8 +139,10 @@ async function handleSuccessfulPayment(data, { retryBusy = false, alreadyVerifie
       ...order,
       restaurant_wallet_account_id: walletByRestaurant.get(order.restaurant_id),
     }));
-    const journal = buildOrderPaymentJournal(claimedPayment, ordersWithWallets);
-    await postFinancialJournal(journal);
+    if (claimedPayment.payment_environment === 'live') {
+      const journal = buildOrderPaymentJournal(claimedPayment, ordersWithWallets);
+      await postFinancialJournal(journal);
+    }
 
     const { error: successError } = await supabaseAdmin
       .from('payments')
