@@ -256,3 +256,71 @@ export async function setInterstateDelivery(req,res,next){
     res.json({allow_interstate_delivery:data.allow_interstate_delivery});
   } catch(err){next(err);}
 }
+
+
+function encodeFinancialCursor(row) {
+  return Buffer.from(JSON.stringify({ created_at: row.created_at, id: row.id })).toString('base64url');
+}
+
+function decodeFinancialCursor(value) {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(Buffer.from(value, 'base64url').toString('utf8'));
+    if (!parsed || typeof parsed.created_at !== 'string' ||
+        !Number.isFinite(Date.parse(parsed.created_at)) ||
+        typeof parsed.id !== 'string' ||
+        !/^[0-9a-f-]{36}$/i.test(parsed.id)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export async function getFinancialSummary(req, res, next) {
+  try {
+    const days = Math.min(365, Math.max(1, Number(req.query.days) || 30));
+    const { data, error } = await supabaseAdmin.rpc('get_financial_admin_summary', { p_days: days });
+    if (error) throw error;
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ summary: data });
+  } catch (err) { next(err); }
+}
+
+export async function listFinancialJournals(req, res, next) {
+  try {
+    const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 25));
+    const cursor = decodeFinancialCursor(req.query.cursor);
+    if (req.query.cursor && !cursor) return res.status(400).json({ error: 'Invalid financial history cursor.' });
+
+    let query = supabaseAdmin.from('financial_journals')
+      .select('id,source_type,source_id,description,currency,created_at,financial_journal_lines(id,side,amount_kobo,financial_accounts(account_code,account_name))')
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .limit(limit + 1);
+
+    if (req.query.source_type) query = query.eq('source_type', req.query.source_type);
+    if (cursor) {
+      query = query.or(`created_at.lt.${cursor.created_at},and(created_at.eq.${cursor.created_at},id.lt.${cursor.id})`);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    const rows = data || [];
+    const hasMore = rows.length > limit;
+    const journals = rows.slice(0, limit).map(journal => ({
+      ...journal,
+      debit_total_kobo: (journal.financial_journal_lines || [])
+        .filter(line => line.side === 'debit')
+        .reduce((sum, line) => sum + Number(line.amount_kobo || 0), 0),
+      line_count: journal.financial_journal_lines?.length || 0,
+    }));
+    const last = journals[journals.length - 1];
+    res.set('Cache-Control', 'private, no-store');
+    res.json({
+      journals,
+      has_more: hasMore,
+      next_cursor: hasMore && last ? encodeFinancialCursor(last) : null,
+      limit,
+    });
+  } catch (err) { next(err); }
+}
