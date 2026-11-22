@@ -27,7 +27,7 @@ export function buildRiderSettlementJournal({ reference, amountKobo, riderWallet
     sourceId: String(reference),
     description: 'Reversed rider bank transfer',
     lines: [
-      { accountCode: 'SYS:BANK_SETTLEMENT', side: 'debit', amountKobo },
+      { accountCode: 'SYS:PAYSTACK_CLEARING', side: 'debit', amountKobo },
       { accountCode: `WALLET:${riderWalletAccountId}:available`, side: 'credit', amountKobo },
     ],
     metadata: { provider: 'paystack', transfer_reference: reference, reversed: true },
@@ -38,7 +38,7 @@ export function buildRiderSettlementJournal({ reference, amountKobo, riderWallet
     description: 'Confirmed rider bank payout',
     lines: [
       { accountCode: `WALLET:${riderWalletAccountId}:available`, side: 'debit', amountKobo },
-      { accountCode: 'SYS:BANK_SETTLEMENT', side: 'credit', amountKobo },
+      { accountCode: 'SYS:PAYSTACK_CLEARING', side: 'credit', amountKobo },
     ],
     metadata: { provider: 'paystack', transfer_reference: reference, reversed: false },
   };
