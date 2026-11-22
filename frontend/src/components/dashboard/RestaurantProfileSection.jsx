@@ -21,6 +21,7 @@ export default function RestaurantProfileSection({ restaurant, onCreated, onUpda
     state: restaurant?.state || '',
     lat: restaurant?.lat ?? '',
     lng: restaurant?.lng ?? '',
+    service_radius_km: restaurant?.service_radius_km ?? '',
     logo_url: restaurant?.logo_url || '',
     cover_image_url: restaurant?.cover_image_url || '',
   });
@@ -37,11 +38,15 @@ export default function RestaurantProfileSection({ restaurant, onCreated, onUpda
   async function handleSubmit(e) {
     e.preventDefault();
     if (!form.name.trim() || !form.address.trim()) { setError('Business name and address are required.'); return; }
-    if (isEdit && (!form.state || form.lat === '' || form.lng === '')) { setError('Add the operating state and exact map coordinates to submit your delivery area.'); return; }
+    if (isEdit && (!form.state || form.lat === '' || form.lng === '' || form.service_radius_km === '')) { setError('Add the operating state and exact map coordinates to submit your delivery area.'); return; }
     if (!form.business_types.length || form.business_types.length > 3) { setError('Choose between one and three business types.'); return; }
     setSaving(true); setError(''); setMessage('');
     try {
-      const payload = { ...form, ...(form.lat !== '' ? { lat: Number(form.lat) } : {}), ...(form.lng !== '' ? { lng: Number(form.lng) } : {}) };
+      const payload = { ...form };
+      if (payload.state === '') delete payload.state;
+      if (payload.lat === '') delete payload.lat; else payload.lat = Number(payload.lat);
+      if (payload.lng === '') delete payload.lng; else payload.lng = Number(payload.lng);
+      if (payload.service_radius_km === '') delete payload.service_radius_km; else payload.service_radius_km = Number(payload.service_radius_km);
       if (isEdit) { const { data } = await api.put(`/restaurants/${restaurant.id}`, payload); onUpdated(data.restaurant); setMessage('Business details saved.'); }
       else { const { data } = await api.post('/restaurants', payload); onCreated(data.restaurant); setMessage('Food business created.'); }
     } catch (err) { setError(err.response?.data?.error || 'Could not save your food business.'); }
@@ -186,7 +191,7 @@ export default function RestaurantProfileSection({ restaurant, onCreated, onUpda
           <div className="md:col-span-2 rounded-xl border border-hairline bg-sand/40 p-4">
             <h3 className="text-sm font-semibold text-ink">Delivery operating location</h3>
             <p className="mt-1 text-xs leading-5 text-ink-soft">Set the state and coordinates for your restaurant’s verified delivery base. Changing these details requires administrator re-verification before checkout is enabled.</p>
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <label className="block text-sm font-medium text-ink">Operating state
                 <select value={form.state} onChange={event => setForm(current => ({...current,state:event.target.value}))} className="mt-1.5 min-h-11 w-full rounded-lg border border-hairline bg-paper px-3 text-sm">
                   <option value="">Select state</option>{STATES.map(value => <option key={value} value={value}>{value}</option>)}
@@ -194,6 +199,7 @@ export default function RestaurantProfileSection({ restaurant, onCreated, onUpda
               </label>
               <FormField label="Latitude" type="number" value={String(form.lat)} onChange={value => setForm(current => ({...current,lat:value}))} />
               <FormField label="Longitude" type="number" value={String(form.lng)} onChange={value => setForm(current => ({...current,lng:value}))} />
+              <FormField label="Maximum delivery radius (km)" type="number" value={String(form.service_radius_km)} onChange={value => setForm(current => ({...current,service_radius_km:value}))} />
             </div>
             {restaurant?.service_area_verified && <p className="mt-3 text-xs font-semibold text-jade">Delivery base verified by an administrator.</p>}
             {!restaurant?.service_area_verified && <p className="mt-3 text-xs text-ink-soft">The service area is not yet verified. An administrator must approve it.</p>}
