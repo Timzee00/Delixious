@@ -4,7 +4,7 @@ import { supabaseAdmin } from '../config/supabase.js';
 function safeEventPayload(event, data) {
   const source = data && typeof data === 'object' ? data : {};
   const safe = {};
-  for (const key of ['id','reference','status','amount','currency','fees','transfer_code','reason','created_at','updated_at','paid_at','domain']) {
+  for (const key of ['id','reference','transaction_reference','refund_reference','status','amount','currency','fees','transfer_code','reason','created_at','updated_at','paid_at','domain']) {
     if (source[key] !== undefined) safe[key] = source[key];
   }
   if (source.split && typeof source.split === 'object') {
@@ -60,7 +60,7 @@ export async function beginProviderEvent(event, data, rawBody) {
       provider: 'paystack',
       event_key: eventKey,
       event_type: event,
-      provider_reference: source.reference || source.transfer_code || null,
+      provider_reference: source.transaction_reference || source.reference || source.refund_reference || source.transfer_code || null,
       payload_hash: payloadHash,
       payload: safePayload,
       state: 'received',
