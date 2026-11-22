@@ -42,7 +42,10 @@ export default function FinancialControlSection() {
     else setLoading(true);
     setError('');
     try {
-      const { data } = await adminApi.listFinancialJournals({ limit: 25, ...(nextCursor ? { cursor: nextCursor } : {}) });
+      const { data } = await adminApi.listFinancialJournals({
+        limit: 25,
+        ...(nextCursor ? { cursor: nextCursor } : {}),
+      });
       setJournals(current => append ? [...current, ...(data.journals || [])] : (data.journals || []));
       setCursor(data.next_cursor || null);
       setHasMore(Boolean(data.has_more));
@@ -69,7 +72,9 @@ export default function FinancialControlSection() {
       setEventHasMore(Boolean(eventResult.data.has_more));
     } catch (err) {
       setError(err.response?.data?.error || 'Could not load payout and provider queues.');
-    } finally { setQueueLoading(false); }
+    } finally {
+      setQueueLoading(false);
+    }
   }, []);
 
   const loadMorePayouts = useCallback(async () => {
@@ -80,8 +85,11 @@ export default function FinancialControlSection() {
       setPayouts(current => [...current, ...(data.payouts || [])]);
       setPayoutCursor(data.next_cursor || null);
       setPayoutHasMore(Boolean(data.has_more));
-    } catch (err) { setError(err.response?.data?.error || 'Could not load more payouts.'); }
-    finally { setQueueLoading(false); }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Could not load more payouts.');
+    } finally {
+      setQueueLoading(false);
+    }
   }, [payoutCursor]);
 
   const loadMoreEvents = useCallback(async () => {
@@ -92,13 +100,18 @@ export default function FinancialControlSection() {
       setEvents(current => [...current, ...(data.events || [])]);
       setEventCursor(data.next_cursor || null);
       setEventHasMore(Boolean(data.has_more));
-    } catch (err) { setError(err.response?.data?.error || 'Could not load more provider events.'); }
-    finally { setQueueLoading(false); }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Could not load more provider events.');
+    } finally {
+      setQueueLoading(false);
+    }
   }, [eventCursor]);
 
   const refresh = useCallback(async () => {
     setError('');
-    try { await loadSummary(); } catch (err) {
+    try {
+      await loadSummary();
+    } catch (err) {
       setError(err.response?.data?.error || 'Could not load financial summary.');
     }
     await Promise.all([loadJournals(), loadQueues()]);
@@ -150,46 +163,74 @@ export default function FinancialControlSection() {
 
       <div className="grid gap-5 xl:grid-cols-2">
         <section className="overflow-hidden rounded-2xl border border-hairline bg-paper">
-          <div className="border-b border-hairline p-4 sm:p-5"><h3 className="font-display text-lg font-semibold text-ink">Payout queue</h3><p className="mt-1 text-xs text-ink-soft">Recipient, amount and provider state · newest first</p></div>
-          {queueLoading && !payouts.length ? <p className="p-6 text-sm text-ink-soft">Loading payout records…</p> : !payouts.length ? <p className="p-6 text-sm text-ink-soft">No payout records yet.</p> : <div className="divide-y divide-hairline">
-            {payouts.map(item => <article key={item.id} className="px-4 py-3">
-              <div className="flex items-center justify-between gap-3"><p className="truncate text-sm font-semibold text-ink">{item.profiles?.full_name || item.payout_type} · {money(item.amount_kobo)}</p><span className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase ${item.status === 'failed' || item.status === 'on_hold' ? 'bg-danger/10 text-danger' : 'bg-sand text-ink-soft'}`}>{item.status.replace(/_/g,' ')}</span></div>
-              <p className="mt-1 truncate font-mono text-[10px] text-ink-soft">{item.provider_reference || item.id}</p>
-              {item.last_error_message && <p className="mt-1 text-xs text-danger">{item.last_error_message}</p>}
-              <p className="mt-1 text-[10px] text-ink-soft">{new Date(item.created_at).toLocaleString('en-NG')}</p>
-            </article>)}
-          </div>}
+          <div className="border-b border-hairline p-4 sm:p-5">
+            <h3 className="font-display text-lg font-semibold text-ink">Payout queue</h3>
+            <p className="mt-1 text-xs text-ink-soft">Recipient, amount and provider state · newest first</p>
+          </div>
+          {queueLoading && !payouts.length ? <p className="p-6 text-sm text-ink-soft">Loading payout records…</p> : !payouts.length ? <p className="p-6 text-sm text-ink-soft">No payout records yet.</p> : (
+            <div className="divide-y divide-hairline">
+              {payouts.map(item => (
+                <article key={item.id} className="px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="truncate text-sm font-semibold text-ink">{item.profiles?.full_name || item.payout_type} · {money(item.amount_kobo)}</p>
+                    <span className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase ${item.status === 'failed' || item.status === 'on_hold' ? 'bg-danger/10 text-danger' : 'bg-sand text-ink-soft'}`}>{item.status.replace(/_/g,' ')}</span>
+                  </div>
+                  <p className="mt-1 truncate font-mono text-[10px] text-ink-soft">{item.provider_reference || item.id}</p>
+                  {item.last_error_message && <p className="mt-1 text-xs text-danger">{item.last_error_message}</p>}
+                  <p className="mt-1 text-[10px] text-ink-soft">{new Date(item.created_at).toLocaleString('en-NG')}</p>
+                </article>
+              ))}
+            </div>
+          )}
           {payoutHasMore && <div className="border-t border-hairline p-3 text-center"><button type="button" disabled={queueLoading} onClick={loadMorePayouts} className="text-sm font-semibold text-pepper disabled:opacity-50">Load older payouts</button></div>}
         </section>
 
         <section className="overflow-hidden rounded-2xl border border-hairline bg-paper">
-          <div className="border-b border-hairline p-4 sm:p-5"><h3 className="font-display text-lg font-semibold text-ink">Paystack event inbox</h3><p className="mt-1 text-xs text-ink-soft">Webhook delivery and retry history · newest first</p></div>
-          {queueLoading && !events.length ? <p className="p-6 text-sm text-ink-soft">Loading provider events…</p> : !events.length ? <p className="p-6 text-sm text-ink-soft">No provider events recorded yet.</p> : <div className="divide-y divide-hairline">
-            {events.map(item => <article key={item.id} className="px-4 py-3">
-              <div className="flex items-center justify-between gap-3"><p className="truncate text-sm font-semibold text-ink">{item.event_type}</p><span className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase ${item.state === 'failed' ? 'bg-danger/10 text-danger' : 'bg-sand text-ink-soft'}`}>{item.state}</span></div>
-              <p className="mt-1 truncate font-mono text-[10px] text-ink-soft">{item.provider_reference || item.id}</p>
-              <p className="mt-1 text-[10px] text-ink-soft">Attempts: {item.attempt_count} · {new Date(item.received_at).toLocaleString('en-NG')}</p>
-              {item.last_error_message && <p className="mt-1 text-xs text-danger">{item.last_error_message}</p>}
-            </article>)}
-          </div>}
+          <div className="border-b border-hairline p-4 sm:p-5">
+            <h3 className="font-display text-lg font-semibold text-ink">Paystack event inbox</h3>
+            <p className="mt-1 text-xs text-ink-soft">Webhook delivery and retry history · newest first</p>
+          </div>
+          {queueLoading && !events.length ? <p className="p-6 text-sm text-ink-soft">Loading provider events…</p> : !events.length ? <p className="p-6 text-sm text-ink-soft">No provider events recorded yet.</p> : (
+            <div className="divide-y divide-hairline">
+              {events.map(item => (
+                <article key={item.id} className="px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="truncate text-sm font-semibold text-ink">{item.event_type}</p>
+                    <span className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase ${item.state === 'failed' ? 'bg-danger/10 text-danger' : 'bg-sand text-ink-soft'}`}>{item.state}</span>
+                  </div>
+                  <p className="mt-1 truncate font-mono text-[10px] text-ink-soft">{item.provider_reference || item.id}</p>
+                  <p className="mt-1 text-[10px] text-ink-soft">Attempts: {item.attempt_count} · {new Date(item.received_at).toLocaleString('en-NG')}</p>
+                  {item.last_error_message && <p className="mt-1 text-xs text-danger">{item.last_error_message}</p>}
+                </article>
+              ))}
+            </div>
+          )}
           {eventHasMore && <div className="border-t border-hairline p-3 text-center"><button type="button" disabled={queueLoading} onClick={loadMoreEvents} className="text-sm font-semibold text-pepper disabled:opacity-50">Load older events</button></div>}
         </section>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-hairline bg-paper">
+      <section className="overflow-hidden rounded-2xl border border-hairline bg-paper">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline p-4 sm:p-5">
-          <div><h3 className="font-display text-lg font-semibold text-ink">Financial journal history</h3>      <div className="overflow-hidden rounded-2xl border border-hairline bg-paper">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline p-4 sm:p-5">
-          <div><h3 className="font-display text-lg font-semibold text-ink">Financial journal history</h3><p className="mt-1 text-xs text-ink-soft">Newest first · 25 records per request · cursor pagination</p></div>
+          <div>
+            <h3 className="font-display text-lg font-semibold text-ink">Financial journal history</h3>
+            <p className="mt-1 text-xs text-ink-soft">Newest first · 25 records per request · cursor pagination</p>
+          </div>
           <span className="rounded-full border border-hairline px-3 py-1 text-xs font-medium text-ink-soft">NGN · Read only</span>
         </div>
         {loading ? <div role="status" className="p-8 text-center text-sm text-ink-soft">Loading financial records…</div> : !journals.length ? (
-          <div className="p-9 text-center"><Icon name="receipt" size={28} className="mx-auto text-ink-soft"/><p className="mt-3 font-semibold text-ink">No posted journals yet</p><p className="mx-auto mt-1 max-w-md text-sm leading-6 text-ink-soft">The accounting ledger is ready, but order-to-ledger posting is not activated. No historic orders or Paystack transfers have been converted into wallet funds.</p></div>
+          <div className="p-9 text-center">
+            <Icon name="receipt" size={28} className="mx-auto text-ink-soft"/>
+            <p className="mt-3 font-semibold text-ink">No posted journals yet</p>
+            <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-ink-soft">No new customer payments have been posted to the ledger yet. Historic orders are not automatically backfilled into wallet balances.</p>
+          </div>
         ) : (
           <div className="divide-y divide-hairline">
             {journals.map(journal => (
               <article key={journal.id} className="grid gap-2 px-4 py-4 sm:grid-cols-[minmax(0,1.4fr)_minmax(120px,0.7fr)_150px] sm:items-center sm:gap-4 sm:px-5">
-                <div className="min-w-0"><p className="truncate text-sm font-semibold text-ink">{journal.description || journal.source_type.replace(/_/g,' ')}</p><p className="mt-1 truncate font-mono text-[11px] text-ink-soft">{journal.source_type} · {journal.source_id || journal.id.slice(0,8)}</p></div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-ink">{journal.description || journal.source_type.replace(/_/g,' ')}</p>
+                  <p className="mt-1 truncate font-mono text-[11px] text-ink-soft">{journal.source_type} · {journal.source_id || journal.id.slice(0,8)}</p>
+                </div>
                 <div><p className="text-sm font-semibold text-ink">{money(journal.debit_total_kobo)}</p><p className="text-[11px] text-ink-soft">{journal.line_count} ledger lines</p></div>
                 <time className="text-xs text-ink-soft">{new Date(journal.created_at).toLocaleString('en-NG')}</time>
               </article>
@@ -197,7 +238,7 @@ export default function FinancialControlSection() {
           </div>
         )}
         {hasMore && <div className="border-t border-hairline p-4 text-center"><button type="button" disabled={loadingMore} onClick={() => loadJournals(cursor,true)} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-hairline px-4 py-2 text-sm font-semibold text-ink disabled:opacity-60">{loadingMore ? 'Loading…' : 'Load older records'} <Icon name="chevron-down" size={16}/></button></div>}
-      </div>
+      </section>
     </section>
   );
 }
