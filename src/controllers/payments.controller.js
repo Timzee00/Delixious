@@ -5,6 +5,8 @@ import { assertVerifiedPaystackPayment } from '../utils/paymentValidation.js';
 import { assertMatchingRiderTransfer } from '../utils/transferValidation.js';
 import { removePurchasedCartLines } from '../utils/paidCartCleanup.js';
 import { beginProviderEvent, finishProviderEvent } from '../utils/providerEventInbox.js';
+import { buildOrderPaymentJournal } from '../utils/orderPaymentJournal.js';
+import { postFinancialJournal } from '../services/financialLedger.js';
 
 async function handleSuccessfulPayment(data) {
   const reference = data.reference;
@@ -70,6 +72,18 @@ async function handleSuccessfulPayment(data) {
         throw new Error('Cannot finalize payment without matching paid orders.');
       }
     }
+
+    // Financial posting is part of payment finalization. It is idempotent,
+    // balanced and committed by a single database RPC. If it fails, the
+    // payment remains retryable and the already-paid orders are reconciled
+    // on the next verified webhook delivery.
+    const { data: ledgerOrders, error: ledgerOrdersError } = await supabaseAdmin
+      .from('orders')
+      .select('id,restaurant_id,total_amount,restaurant_net_amount,rider_payout_amount,platform_commission')
+      .eq('checkout_group_id', claimedPayment.checkout_group_id);
+    if (ledgerOrdersError) throw ledgerOrdersError;
+    const journal = buildOrderPaymentJournal(claimedPayment, ledgerOrders || []);
+    await postFinancialJournal(journal);
 
     const { error: successError } = await supabaseAdmin
       .from('payments')
