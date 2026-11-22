@@ -32,7 +32,7 @@ export default function RidersApprovalSection() {
     setError('');
     try {
       await adminApi.setRiderApproval(id, status);
-      setRiders(current => current.map(r => r.id === id ? { ...r, rider_approval_status: status } : r));
+      setRiders(current => current.map(r => r.id === id ? { ...r, rider_approval_status: status, rider_service_area_verified: status === 'approved' } : r));
     } catch (err) {
       setError(err.response?.data?.error || 'Could not update rider.');
     } finally {
@@ -53,10 +53,11 @@ export default function RidersApprovalSection() {
               <div className="min-w-0">
                 <p className="font-semibold text-ink">{r.full_name || 'Rider profile'}</p>
                 <p className="mt-1 text-sm text-ink-soft">{r.phone || r.email || 'No contact supplied'}</p>
-                <p className="mt-1 text-xs capitalize text-ink-soft">{r.rider_approval_status || 'pending'} · {r.rider_rating_count ? `Rating ${r.rider_rating_avg} (${r.rider_rating_count})` : 'No ratings yet'}</p>
+                <p className="mt-1 text-xs capitalize text-ink-soft">{r.rider_approval_status || 'pending'} · {r.rider_operating_state || 'State not supplied'} · {r.rider_service_radius_km ? `${r.rider_service_radius_km} km` : 'Radius not supplied'} · {r.rider_service_area_verified ? 'Area verified' : 'Area not verified'}</p>
+                <p className="mt-1 text-xs text-ink-soft">Base: {r.rider_base_lat ?? '—'}, {r.rider_base_lng ?? '—'} · {r.rider_rating_count ? `Rating ${r.rider_rating_avg} (${r.rider_rating_count})` : 'No ratings yet'}</p>
               </div>
               <div className="flex flex-wrap gap-2">
-                {r.rider_approval_status !== 'approved' && <button type="button" disabled={busyId === r.id} onClick={() => setApproval(r.id, 'approved')} className="min-h-10 rounded-lg bg-jade px-3 text-sm font-semibold text-white disabled:opacity-50">{busyId === r.id ? 'Saving…' : 'Approve'}</button>}
+                {(r.rider_approval_status !== 'approved' || !r.rider_service_area_verified) && <button type="button" disabled={busyId === r.id} onClick={() => setApproval(r.id, 'approved')} className="min-h-10 rounded-lg bg-jade px-3 text-sm font-semibold text-white disabled:opacity-50">{busyId === r.id ? 'Saving…' : r.rider_approval_status === 'approved' ? 'Verify area' : 'Approve & verify'}</button>}
                 {r.rider_approval_status !== 'rejected' && <button type="button" disabled={busyId === r.id} onClick={() => setApproval(r.id, 'rejected')} className="min-h-10 rounded-lg border border-hairline px-3 text-sm font-semibold text-danger disabled:opacity-50">Reject</button>}
               </div>
             </article>
