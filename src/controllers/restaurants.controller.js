@@ -105,7 +105,10 @@ export async function createRestaurant(req, res, next) {
 export async function updateRestaurant(req, res, next) {
   try {
     const updates = { ...req.body };
-    if (updates.state !== undefined || updates.lat !== undefined || updates.lng !== undefined) updates.service_area_verified = false;
+    const locationChanged = (updates.state !== undefined && updates.state !== req.restaurant.state) ||
+      (updates.lat !== undefined && Number(updates.lat) !== Number(req.restaurant.lat)) ||
+      (updates.lng !== undefined && Number(updates.lng) !== Number(req.restaurant.lng));
+    if (locationChanged) updates.service_area_verified = false;
     delete updates.slug;
     delete updates.owner_id;
     const { data, error } = await supabaseAdmin.from('restaurants')
