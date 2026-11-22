@@ -28,6 +28,7 @@ import {
   saveDeliveryZone,
   setInterstateDelivery,
   getFinancialSummary,
+  getFinancialHealth,
   listFinancialJournals,
   listFinancialPayouts,
   listProviderEvents,
@@ -40,6 +41,7 @@ router.use(requireAuth, requireRole('admin'));
 
 router.get('/stats', getStats);
 router.get('/finance/summary',getFinancialSummary);
+router.get('/finance/health',getFinancialHealth);
 router.get('/finance/journals',validate({query:financialJournalsQuerySchema}),listFinancialJournals);
 router.get('/finance/payouts',validate({query:financialPayoutsQuerySchema}),listFinancialPayouts);
 router.get('/finance/events',validate({query:providerEventsQuerySchema}),listProviderEvents);
