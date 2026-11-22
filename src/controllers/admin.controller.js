@@ -324,3 +324,53 @@ export async function listFinancialJournals(req, res, next) {
     });
   } catch (err) { next(err); }
 }
+
+
+export async function listFinancialPayouts(req, res, next) {
+  try {
+    const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 25));
+    const cursor = decodeFinancialCursor(req.query.cursor);
+    if (req.query.cursor && !cursor) return res.status(400).json({ error: 'Invalid payout history cursor.' });
+    let query = supabaseAdmin.from('financial_payouts')
+      .select('id,payout_type,amount_kobo,status,account_last4,provider_reference,last_error_code,last_error_message,created_at,paid_at,profiles!financial_payouts_owner_user_id_fkey(full_name,phone)')
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .limit(limit + 1);
+    if (req.query.status) query = query.eq('status', req.query.status);
+    if (cursor) query = query.or(`created_at.lt.${cursor.created_at},and(created_at.eq.${cursor.created_at},id.lt.${cursor.id})`);
+    const { data, error } = await query;
+    if (error) throw error;
+    const rows = data || [];
+    const hasMore = rows.length > limit;
+    const payouts = rows.slice(0, limit);
+    const last = payouts[payouts.length - 1];
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ payouts, has_more: hasMore, next_cursor: hasMore && last ? encodeFinancialCursor(last) : null, limit });
+  } catch (err) { next(err); }
+}
+
+export async function listProviderEvents(req, res, next) {
+  try {
+    const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 25));
+    const cursor = decodeFinancialCursor(req.query.cursor);
+    if (req.query.cursor && !cursor) return res.status(400).json({ error: 'Invalid provider event cursor.' });
+    let query = supabaseAdmin.from('financial_provider_events')
+      .select('id,event_type,provider_reference,state,attempt_count,last_error_code,last_error_message,received_at,processed_at')
+      .order('received_at', { ascending: false })
+      .order('id', { ascending: false })
+      .limit(limit + 1);
+    if (req.query.state) query = query.eq('state', req.query.state);
+    if (cursor) query = query.or(`received_at.lt.${cursor.created_at},and(received_at.eq.${cursor.created_at},id.lt.${cursor.id})`);
+    const { data, error } = await query;
+    if (error) throw error;
+    const rows = data || [];
+    const hasMore = rows.length > limit;
+    const events = rows.slice(0, limit);
+    const last = events[events.length - 1];
+    const nextCursor = hasMore && last
+      ? Buffer.from(JSON.stringify({ created_at: last.received_at, id: last.id })).toString('base64url')
+      : null;
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ events, has_more: hasMore, next_cursor: nextCursor, limit });
+  } catch (err) { next(err); }
+}
