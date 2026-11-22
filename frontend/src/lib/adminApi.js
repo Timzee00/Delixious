@@ -10,4 +10,7 @@ export const adminApi = {
   setUserSuspension: (id, suspended) => api.patch(`/admin/users/${id}/suspend`, { suspended }),
   listOrders: (params) => api.get('/admin/orders', { params }),
   sendBroadcast: (payload) => api.post('/admin/broadcast', payload),
+  listDeliveryZones: () => api.get('/admin/delivery-zones'),
+  saveDeliveryZone: (state, payload) => api.put(`/admin/delivery-zones/${encodeURIComponent(state)}`, payload),
+  setInterstateDelivery: (enabled) => api.patch('/admin/delivery-settings/interstate', { enabled }),
 };
