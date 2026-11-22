@@ -4,6 +4,7 @@ import { verifyTransaction, listBanks } from '../utils/paystack.js';
 import { assertVerifiedPaystackPayment } from '../utils/paymentValidation.js';
 import { assertMatchingRiderTransfer } from '../utils/transferValidation.js';
 import { removePurchasedCartLines } from '../utils/paidCartCleanup.js';
+import { beginProviderEvent, finishProviderEvent } from '../utils/providerEventInbox.js';
 
 async function handleSuccessfulPayment(data) {
   const reference = data.reference;
@@ -166,10 +167,31 @@ export async function paystackWebhook(req, res, next) {
       return res.status(401).json({ error: 'Invalid signature.' });
     }
 
-    if (req.body.event === 'charge.success') {
-      await handleSuccessfulPayment(req.body.data);
-    } else if (['transfer.success', 'transfer.failed', 'transfer.reversed'].includes(req.body.event)) {
-      await handleRiderTransferEvent(req.body.event, req.body.data);
+    const eventName = req.body?.event;
+    const eventData = req.body?.data;
+    const inbox = await beginProviderEvent(eventName, eventData, req.rawBody);
+    if (!inbox.claimed) return res.sendStatus(200);
+
+    try {
+      if (eventName === 'charge.success') {
+        await handleSuccessfulPayment(eventData);
+        await finishProviderEvent(inbox.id, 'processed');
+      } else if (['transfer.success', 'transfer.failed', 'transfer.reversed'].includes(eventName)) {
+        await handleRiderTransferEvent(eventName, eventData);
+        await finishProviderEvent(inbox.id, 'processed');
+      } else {
+        await finishProviderEvent(inbox.id, 'ignored');
+      }
+    } catch (processingError) {
+      try {
+        await finishProviderEvent(inbox.id, 'failed', processingError);
+      } catch (inboxError) {
+        console.error('Unable to mark Paystack event as failed', {
+          eventId: inbox.id,
+          message: inboxError.message,
+        });
+      }
+      throw processingError;
     }
     res.sendStatus(200);
   } catch (err) {
