@@ -12,7 +12,8 @@ router.use(requireAuth);
 
 const activityQuery = z.object({
   wallet_id: z.string().uuid().optional(),
-  page: z.coerce.number().int().min(1).max(100).optional(),
+  limit: z.coerce.number().int().min(1).max(50).optional(),
+  cursor: z.string().max(300).optional(),
 });
 
 const settingsSchema = z.object({
