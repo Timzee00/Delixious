@@ -67,6 +67,14 @@ Paystack webhooks are recorded in `financial_provider_events`. The inbox:
 
 Financial journals, payout records, and provider events use descending timestamp/UUID cursor pagination. The database has indexes for account history, journal history, payout queues, event queues and control-account rollups. Admin endpoints return bounded pages rather than loading the full ledger.
 
+## Free-tier operations
+
+- A Supabase `pg_cron` job runs the internal financial health watchdog every 15 minutes. It checks balanced journals, successful live payments without ledger entries, aged pending payments, expired processing leases, failed/stale provider events, failed/stale payouts, and paid orders without matching live payments.
+- The watchdog runs in the database and does not depend on the Render Free web service staying awake. It retains 90 days of check history.
+- Admins can manually reconcile up to 10 oldest eligible live pending/processing payments at a time by asking Paystack to verify each reference. This is a recovery action, not a substitute for a provider settlement statement.
+- Paystack test-mode transactions are explicitly tagged `test`; they can exercise ordering but never post live ledger entries or create rider transfers. Historical test payments are classified by provider domain and reference.
+- Refund and dispute webhooks are captured in the provider-event inbox and flagged for manual financial review. They are not silently ignored and do not automatically alter wallet balances.
+
 ## Still required before live-money certification
 
 1. Reconcile Paystack main-account and restaurant-subaccount settlements against actual settlement reports.
