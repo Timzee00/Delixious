@@ -167,8 +167,8 @@ select
   (select count(*) from public.profiles where role = 'delivery_agent' and rider_approval_status = 'pending') as pending_riders,
   (select count(*) from public.profiles where role = 'customer') as total_customers,
   (select count(*) from public.orders) as total_orders,
-  (select coalesce(sum(total_amount), 0) from public.orders where status <> 'cancelled') as total_revenue,
-  (select coalesce(sum(platform_commission), 0) from public.orders where status <> 'cancelled') as total_commission;
+  (select coalesce(sum(total_amount), 0)::numeric(14,2) from public.orders where status <> 'cancelled') as total_revenue,
+  (select coalesce(sum(platform_commission), 0)::numeric(14,2) from public.orders where status <> 'cancelled') as total_commission;
 
 -- ============================================================
 -- Done.
