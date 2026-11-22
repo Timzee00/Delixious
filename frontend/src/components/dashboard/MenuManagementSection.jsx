@@ -216,8 +216,11 @@ function MenuItemForm({ restaurantId, item, onSaved, onCancel }) {
     if (!form.name.trim() || form.price === '' || Number(form.price) < 0 || !Number.isFinite(Number(form.price))) { setError('Enter a product name and a valid non-negative price.'); return; }
     setSaving(true); setError('');
     try {
-      const extras = form.extras.filter(extra => extra.name.trim() !== '' || extra.price !== '').map(extra => ({ ...(extra.id ? { id: extra.id } : {}), name: extra.name.trim(), price: Number(extra.price) }));
-      if (extras.some(extra => !extra.name || !Number.isFinite(extra.price) || extra.price < 0)) { setError('Enter a name and valid price for each extra.'); setSaving(false); return; }
+      const rawExtras = form.extras.filter(extra => extra.name.trim() !== '' || extra.price !== '');
+      if (rawExtras.some(extra => !extra.name.trim() || extra.price === '' || !Number.isFinite(Number(extra.price)) || Number(extra.price) < 0)) {
+        setError('Enter a name and a price for each extra.'); setSaving(false); return;
+      }
+      const extras = rawExtras.map(extra => ({ ...(extra.id ? { id: extra.id } : {}), name: extra.name.trim(), price: Number(extra.price) }));
       const payload = { ...form, extras, price: Number(form.price) };
       const { data } = isEdit ? await api.put(`/menu-items/${item.id}`, payload) : await api.post(`/restaurants/${restaurantId}/menu`, payload);
       onSaved(data.menu_item);
