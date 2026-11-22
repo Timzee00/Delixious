@@ -166,7 +166,7 @@ begin
   end if;
   if exists (
     select 1 from jsonb_to_recordset(p_lines) as x(account_code text, side text, amount_kobo bigint)
-    where x.account_code is null or x.side not in ('debit','credit') or x.amount_kobo is null or x.amount_kobo <= 0
+    where x.account_code is null or x.side is null or x.side not in ('debit','credit') or x.amount_kobo is null or x.amount_kobo <= 0
   ) then
     raise exception 'Financial journal contains an invalid line';
   end if;
