@@ -9,7 +9,7 @@ import { buildOrderPaymentJournal } from '../utils/orderPaymentJournal.js';
 import { postFinancialJournal } from '../services/financialLedger.js';
 import { buildRiderSettlementJournal } from '../utils/riderWalletJournal.js';
 
-async function handleSuccessfulPayment(data, { retryBusy = false, alreadyVerified = false } = {}) {
+export async function handleSuccessfulPayment(data, { retryBusy = false, alreadyVerified = false } = {}) {
   const reference = data.reference;
 
   const { data: payment, error: paymentLookupError } = await supabaseAdmin
