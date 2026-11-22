@@ -191,6 +191,16 @@ async function handleRiderTransferEvent(event, data) {
   if (!order) throw new Error('Unknown Delixious rider payout reference.');
   assertMatchingRiderTransfer(data, order);
 
+  const { data: payoutRecord, error: payoutLookupError } = await supabaseAdmin
+    .from('financial_payouts')
+    .select('id,status')
+    .eq('provider_reference', data.reference)
+    .maybeSingle();
+  if (payoutLookupError) throw payoutLookupError;
+  if (!payoutRecord) throw new Error('Rider payout queue record is missing.');
+  if (payoutRecord.status === 'reversed' && event !== 'transfer.reversed') return;
+  if (payoutRecord.status === 'paid' && event === 'transfer.failed') return;
+
   const { data: tracking, error: trackingError } = await supabaseAdmin
     .from('delivery_tracking')
     .select('delivery_agent_id')
