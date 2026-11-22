@@ -139,12 +139,12 @@ export default function RestaurantDetail() {
     }
   }
 
-  async function handleAdd(item, replace = false) {
+  async function handleAdd(item, replace = false, selected_extras = []) {
     if (!isAuthenticated) { setActionError('Sign in to add dishes to your cart.'); return; }
     setActionError('');
     setItemStatus(prev => ({ ...prev, [item.id]: 'adding' }));
     try {
-      await api.post('/cart/items', { menu_item_id: item.id, quantity: 1, replace });
+      await api.post('/cart/items', { menu_item_id: item.id, quantity: 1, replace, selected_extras });
       await refreshCart();
       setConflict(null);
       if (isMounted.current) {
@@ -152,7 +152,7 @@ export default function RestaurantDetail() {
         setTimeout(() => { if (isMounted.current) setItemStatus(prev => ({ ...prev, [item.id]: undefined })); }, 1200);
       }
     } catch (err) {
-      if (err.response?.status === 409) setConflict({ message: err.response.data.error, item });
+      if (err.response?.status === 409) setConflict({ message: err.response.data.error, item, selected_extras });
       else setActionError(err.response?.data?.error || 'Could not add item to cart.');
       if (isMounted.current) setItemStatus(prev => ({ ...prev, [item.id]: undefined }));
     }
@@ -223,7 +223,7 @@ export default function RestaurantDetail() {
         ) : (
           <>
             <div className="space-y-8">
-              {Object.entries(grouped).map(([categoryName, items]) => <section key={categoryName}><h3 className="font-display text-lg font-bold text-ink">{categoryName}</h3><div className="mt-3 space-y-3">{items.map(item => <MenuItemRow key={item.id} item={item} status={itemStatus[item.id]} onAdd={() => handleAdd(item)} disabled={!restaurant.is_open}/>)}</div></section>)}
+              {Object.entries(grouped).map(([categoryName, items]) => <section key={categoryName}><h3 className="font-display text-lg font-bold text-ink">{categoryName}</h3><div className="mt-3 space-y-3">{items.map(item => <MenuItemRow key={item.id} item={item} status={itemStatus[item.id]} onAdd={(selected) => handleAdd(item, false, selected)} disabled={!restaurant.is_open}/>)}</div></section>)}
             </div>
             {menuItems.length < menuTotal && <div className="mt-7 flex flex-col items-center gap-2"><p className="text-xs text-ink-soft">Showing {menuItems.length.toLocaleString()} of {menuTotal.toLocaleString()} products</p>{menuMoreError && <p role="alert" className="text-sm text-danger">{menuMoreError}</p>}<Button variant="secondary" busy={menuLoadingMore} onClick={loadMoreMenu}>{menuMoreError ? 'Retry loading products' : 'Load more products'}</Button></div>}
           </>
@@ -232,7 +232,7 @@ export default function RestaurantDetail() {
 
       {reviewsOpen && <RestaurantReviewsModal restaurant={restaurant} onClose={() => setReviewsOpen(false)}/>}
 
-      {conflict && <ConfirmModal title="Switch restaurants?" message={conflict.message} confirmLabel="Replace cart" onCancel={() => setConflict(null)} onConfirm={() => handleAdd(conflict.item, true)}/>}
+      {conflict && <ConfirmModal title="Switch restaurants?" message={conflict.message} confirmLabel="Replace cart" onCancel={() => setConflict(null)} onConfirm={() => handleAdd(conflict.item, true, conflict.selected_extras)}/>}
     </div>
   );
 }
