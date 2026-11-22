@@ -10,7 +10,9 @@ import {
   broadcastSchema,
   deliveryZoneSchema,
   interstateDeliverySchema,
-  financialJournalsQuerySchema,\n  financialPayoutsQuerySchema,\n  providerEventsQuerySchema,
+  financialJournalsQuerySchema,
+  financialPayoutsQuerySchema,
+  providerEventsQuerySchema,
 } from '../schemas/admin.schema.js';
 import {
   getStats,
@@ -26,7 +28,9 @@ import {
   saveDeliveryZone,
   setInterstateDelivery,
   getFinancialSummary,
-  listFinancialJournals,\n  listFinancialPayouts,\n  listProviderEvents,
+  listFinancialJournals,
+  listFinancialPayouts,
+  listProviderEvents,
 } from '../controllers/admin.controller.js';
 
 const router = Router();
@@ -36,7 +40,9 @@ router.use(requireAuth, requireRole('admin'));
 
 router.get('/stats', getStats);
 router.get('/finance/summary',getFinancialSummary);
-router.get('/finance/journals',validate({query:financialJournalsQuerySchema}),listFinancialJournals);\nrouter.get('/finance/payouts',validate({query:financialPayoutsQuerySchema}),listFinancialPayouts);\nrouter.get('/finance/events',validate({query:providerEventsQuerySchema}),listProviderEvents);
+router.get('/finance/journals',validate({query:financialJournalsQuerySchema}),listFinancialJournals);
+router.get('/finance/payouts',validate({query:financialPayoutsQuerySchema}),listFinancialPayouts);
+router.get('/finance/events',validate({query:providerEventsQuerySchema}),listProviderEvents);
 router.get('/delivery-zones',listDeliveryZones);
 router.put('/delivery-zones/:state',validate({body:deliveryZoneSchema}),saveDeliveryZone);
 router.patch('/delivery-settings/interstate',validate({body:interstateDeliverySchema}),setInterstateDelivery);
