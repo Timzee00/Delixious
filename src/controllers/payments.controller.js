@@ -315,6 +315,17 @@ export async function paystackWebhook(req, res, next) {
       } else if (['transfer.success', 'transfer.failed', 'transfer.reversed'].includes(eventName)) {
         await handleRiderTransferEvent(eventName, eventData);
         await finishProviderEvent(inbox.id, 'processed');
+      } else if ([
+        'refund.pending','refund.processing','refund.processed','refund.failed','refund.needs-attention',
+        'charge.dispute.create','charge.dispute.remind','charge.dispute.resolve',
+      ].includes(eventName)) {
+        // Do not silently ignore money-moving events. Refunds and disputes need
+        // a transaction-level reconciliation and a human decision before any
+        // wallet liability is reversed or released.
+        await finishProviderEvent(inbox.id, 'failed', {
+          code: 'MANUAL_FINANCIAL_REVIEW_REQUIRED',
+          message: `Paystack ${eventName} event recorded. Match it to the original charge and reconcile the refund/dispute before changing wallet balances.`,
+        });
       } else {
         await finishProviderEvent(inbox.id, 'ignored');
       }
