@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { supabaseAdmin } from '../config/supabase.js';
 import { createSubaccount } from '../utils/paystack.js';
 
-const PUBLIC_FIELDS = 'id, slug, name, description, cuisine_type, business_types, address, lat, lng, logo_url, cover_image_url, is_open, rating_avg, rating_count, created_at';
+const PUBLIC_FIELDS = 'id, slug, name, description, cuisine_type, business_types, address, state, lat, lng, service_area_verified, logo_url, cover_image_url, is_open, rating_avg, rating_count, created_at';
 const MANAGEMENT_FIELDS = `${PUBLIC_FIELDS}, approval_status`;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -88,6 +88,8 @@ export async function createRestaurant(req, res, next) {
     const payload = {
       ...req.body,
       business_types: req.body.business_types || ['restaurant'],
+      state: req.body.state || null,
+      service_area_verified: false,
       slug: createStoreSlug(req.body.name),
       owner_id: req.user.id,
     };
@@ -103,6 +105,7 @@ export async function createRestaurant(req, res, next) {
 export async function updateRestaurant(req, res, next) {
   try {
     const updates = { ...req.body };
+    if (updates.state !== undefined || updates.lat !== undefined || updates.lng !== undefined) updates.service_area_verified = false;
     delete updates.slug;
     delete updates.owner_id;
     const { data, error } = await supabaseAdmin.from('restaurants')
