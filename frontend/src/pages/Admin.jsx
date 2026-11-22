@@ -5,7 +5,7 @@ import RestaurantsApprovalSection from '../components/admin/RestaurantsApprovalS
 import RidersApprovalSection from '../components/admin/RidersApprovalSection.jsx';
 import DeliveryZonesSection from '../components/admin/DeliveryZonesSection.jsx';
 import UsersSection from '../components/admin/UsersSection.jsx';
-import BroadcastSection from '../components/admin/BroadcastSection.jsx';
+import BroadcastSection from '../components/admin/BroadcastSection.jsx';\nimport FinancialControlSection from '../components/admin/FinancialControlSection.jsx';
 import PaginationControls from '../components/ui/PaginationControls.jsx';
 import Icon from '../components/ui/Icon.jsx';
 import SceneIllustration from '../components/ui/SceneIllustration.jsx';
@@ -14,7 +14,7 @@ const TABS = [
   { id: 'Overview', label: 'Overview', icon: 'chart-no-axes-column' },
   { id: 'Restaurants', label: 'Restaurants', icon: 'store-front' },
   { id: 'Riders', label: 'Riders', icon: 'bike' },
-  { id: 'Delivery zones', label: 'Delivery zones', icon: 'map' },
+  { id: 'Delivery zones', label: 'Delivery zones', icon: 'map' },\n  { id: 'Finance', label: 'Finance', icon: 'wallet' },
   { id: 'Users', label: 'Users', icon: 'users' },
   { id: 'Orders', label: 'Orders', icon: 'clipboard-list' },
   { id: 'Broadcast', label: 'Broadcast', icon: 'bell' },
@@ -121,7 +121,7 @@ export default function Admin() {
         {tab === 'Overview' && <StatsSection/>}
         {tab === 'Restaurants' && <RestaurantsApprovalSection/>}
         {tab === 'Riders' && <RidersApprovalSection/>}
-        {tab === 'Delivery zones' && <DeliveryZonesSection/>}
+        {tab === 'Delivery zones' && <DeliveryZonesSection/>}\n        {tab === 'Finance' && <FinancialControlSection/>}
         {tab === 'Users' && <UsersSection/>}
         {tab === 'Orders' && <AdminOrdersSection/>}
         {tab === 'Broadcast' && <BroadcastSection/>}
