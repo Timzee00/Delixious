@@ -35,61 +35,47 @@ function Action({ icon, label, note, enabled }) {
 
 function AdminFeeSettings({ settings, onSave }) {
   const [restaurantRate, setRestaurantRate] = useState(String((settings?.restaurant_commission_bps || 0) / 100));
-  const [riderRate, setRiderRate] = useState(String((settings?.rider_commission_bps || 0) / 100));
-  const [delivery, setDelivery] = useState(String((settings?.restaurant_delivery_fee_kobo || 0) / 100));
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!settings) return;
-    setRestaurantRate(String(settings.restaurant_commission_bps / 100));
-    setRiderRate(String(settings.rider_commission_bps / 100));
-    setDelivery(String(settings.restaurant_delivery_fee_kobo / 100));
+    if (settings) setRestaurantRate(String(settings.restaurant_commission_bps / 100));
   }, [settings]);
 
   async function save(e) {
     e.preventDefault();
     setError('');
     setMessage('');
-    const values = [Number(restaurantRate), Number(riderRate), Number(delivery)];
-    if (!values.every(Number.isFinite) || values[0] < 0 || values[0] > 30 || values[1] < 0 || values[1] > 30 || values[2] < 0 || values[2] > 20000) {
-      setError('Commission rates must be between 0 and 30%, and delivery cost between ₦0 and ₦20,000.');
+    const rate = Number(restaurantRate);
+    if (!Number.isFinite(rate) || rate < 0 || rate > 30) {
+      setError('Restaurant commission must be between 0% and 30%.');
       return;
     }
     setSaving(true);
     try {
       const { data } = await api.patch('/wallet/settings', {
-        restaurant_commission_bps: Math.round(values[0] * 100),
-        rider_commission_bps: Math.round(values[1] * 100),
-        restaurant_delivery_fee_kobo: Math.round(values[2] * 100),
+        restaurant_commission_bps: Math.round(rate * 100),
       });
       onSave(data.settings);
-      setMessage('Commission settings saved. Changes apply to new checkouts only.');
+      setMessage('Restaurant commission saved. It applies to future orders only. Delivery prices are managed in Delivery Zones.');
     } catch (err) {
-      setError(err.response?.data?.error || 'Could not update wallet settings.');
+      setError(err.response?.data?.error || 'Could not update marketplace commission.');
     } finally { setSaving(false); }
   }
 
   return (
     <section className="mt-6 rounded-2xl border border-hairline bg-paper p-5 sm:p-6" aria-labelledby="wallet-fees-title">
-      <div className="flex items-center gap-2"><Icon name="settings" className="text-pepper" /><h2 id="wallet-fees-title" className="font-display text-lg font-semibold text-ink">Marketplace fees</h2></div>
-      <p className="mt-2 text-sm text-ink-soft">Admin settings for future orders. Delivery is deducted from the restaurant settlement, not added to customer checkout.</p>
-      <form onSubmit={save} className="mt-5 grid gap-4 sm:grid-cols-3">
-        {[
-          ['Restaurant commission (%)', restaurantRate, setRestaurantRate, 30],
-          ['Rider commission (%)', riderRate, setRiderRate, 30],
-          ['Restaurant delivery cost (₦)', delivery, setDelivery, 20000],
-        ].map(([label, value, setter, max]) => (
-          <label key={label} className="block text-xs font-medium text-ink-soft">
-            {label}
-            <input type="number" min="0" max={max} step="0.01" required value={value} onChange={e => setter(e.target.value)}
-              className="mt-2 w-full rounded-xl border border-hairline bg-paper px-3 py-3 text-base font-semibold text-ink focus:border-pepper focus:outline-none" />
-          </label>
-        ))}
-        <div className="sm:col-span-3 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-xs text-ink-soft">Provider transaction and withdrawal fees are separate.</p>
-          <Button type="submit" busy={saving} disabled={saving} className="min-w-[150px]">Save changes</Button>
+      <div className="flex items-center gap-2"><Icon name="settings" className="text-pepper" /><h2 id="wallet-fees-title" className="font-display text-lg font-semibold text-ink">Marketplace commission</h2></div>
+      <p className="mt-2 text-sm text-ink-soft">Commission is calculated against food and selected extras only. Riders receive the configured delivery fee in full. Delivery prices are managed separately by state.</p>
+      <form onSubmit={save} className="mt-5 grid gap-4 sm:grid-cols-[minmax(0,260px)_1fr] sm:items-end">
+        <label className="block text-xs font-medium text-ink-soft">Restaurant commission (%)
+          <input type="number" min="0" max="30" step="0.01" required value={restaurantRate} onChange={e => setRestaurantRate(e.target.value)}
+            className="mt-2 w-full rounded-xl border border-hairline bg-paper px-3 py-3 text-base font-semibold text-ink focus:border-pepper focus:outline-none" />
+        </label>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs text-ink-soft">Historical order allocations are never changed.</p>
+          <Button type="submit" busy={saving} disabled={saving} className="min-w-[150px]">Save commission</Button>
         </div>
       </form>
       {error && <p role="alert" className="mt-3 rounded-lg bg-danger/10 p-3 text-sm text-danger">{error}</p>}
