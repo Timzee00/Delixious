@@ -19,8 +19,15 @@ function Metric({ label, value, note, tone = 'default' }) {
 export default function FinancialControlSection() {
   const [summary, setSummary] = useState(null);
   const [journals, setJournals] = useState([]);
+  const [payouts, setPayouts] = useState([]);
+  const [events, setEvents] = useState([]);
   const [cursor, setCursor] = useState(null);
   const [hasMore, setHasMore] = useState(false);
+  const [payoutCursor, setPayoutCursor] = useState(null);
+  const [payoutHasMore, setPayoutHasMore] = useState(false);
+  const [eventCursor, setEventCursor] = useState(null);
+  const [eventHasMore, setEventHasMore] = useState(false);
+  const [queueLoading, setQueueLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
@@ -47,13 +54,55 @@ export default function FinancialControlSection() {
     }
   }, []);
 
+  const loadQueues = useCallback(async () => {
+    setQueueLoading(true);
+    try {
+      const [payoutResult, eventResult] = await Promise.all([
+        adminApi.listFinancialPayouts({ limit: 25 }),
+        adminApi.listProviderEvents({ limit: 25 }),
+      ]);
+      setPayouts(payoutResult.data.payouts || []);
+      setPayoutCursor(payoutResult.data.next_cursor || null);
+      setPayoutHasMore(Boolean(payoutResult.data.has_more));
+      setEvents(eventResult.data.events || []);
+      setEventCursor(eventResult.data.next_cursor || null);
+      setEventHasMore(Boolean(eventResult.data.has_more));
+    } catch (err) {
+      setError(err.response?.data?.error || 'Could not load payout and provider queues.');
+    } finally { setQueueLoading(false); }
+  }, []);
+
+  const loadMorePayouts = useCallback(async () => {
+    if (!payoutCursor) return;
+    setQueueLoading(true);
+    try {
+      const { data } = await adminApi.listFinancialPayouts({ limit: 25, cursor: payoutCursor });
+      setPayouts(current => [...current, ...(data.payouts || [])]);
+      setPayoutCursor(data.next_cursor || null);
+      setPayoutHasMore(Boolean(data.has_more));
+    } catch (err) { setError(err.response?.data?.error || 'Could not load more payouts.'); }
+    finally { setQueueLoading(false); }
+  }, [payoutCursor]);
+
+  const loadMoreEvents = useCallback(async () => {
+    if (!eventCursor) return;
+    setQueueLoading(true);
+    try {
+      const { data } = await adminApi.listProviderEvents({ limit: 25, cursor: eventCursor });
+      setEvents(current => [...current, ...(data.events || [])]);
+      setEventCursor(data.next_cursor || null);
+      setEventHasMore(Boolean(data.has_more));
+    } catch (err) { setError(err.response?.data?.error || 'Could not load more provider events.'); }
+    finally { setQueueLoading(false); }
+  }, [eventCursor]);
+
   const refresh = useCallback(async () => {
     setError('');
     try { await loadSummary(); } catch (err) {
       setError(err.response?.data?.error || 'Could not load financial summary.');
     }
-    await loadJournals();
-  }, [loadSummary, loadJournals]);
+    await Promise.all([loadJournals(), loadQueues()]);
+  }, [loadSummary, loadJournals, loadQueues]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -99,7 +148,37 @@ export default function FinancialControlSection() {
         ))}
       </div>
 
+      <div className="grid gap-5 xl:grid-cols-2">
+        <section className="overflow-hidden rounded-2xl border border-hairline bg-paper">
+          <div className="border-b border-hairline p-4 sm:p-5"><h3 className="font-display text-lg font-semibold text-ink">Payout queue</h3><p className="mt-1 text-xs text-ink-soft">Recipient, amount and provider state · newest first</p></div>
+          {queueLoading && !payouts.length ? <p className="p-6 text-sm text-ink-soft">Loading payout records…</p> : !payouts.length ? <p className="p-6 text-sm text-ink-soft">No payout records yet.</p> : <div className="divide-y divide-hairline">
+            {payouts.map(item => <article key={item.id} className="px-4 py-3">
+              <div className="flex items-center justify-between gap-3"><p className="truncate text-sm font-semibold text-ink">{item.profiles?.full_name || item.payout_type} · {money(item.amount_kobo)}</p><span className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase ${item.status === 'failed' || item.status === 'on_hold' ? 'bg-danger/10 text-danger' : 'bg-sand text-ink-soft'}`}>{item.status.replace(/_/g,' ')}</span></div>
+              <p className="mt-1 truncate font-mono text-[10px] text-ink-soft">{item.provider_reference || item.id}</p>
+              {item.last_error_message && <p className="mt-1 text-xs text-danger">{item.last_error_message}</p>}
+              <p className="mt-1 text-[10px] text-ink-soft">{new Date(item.created_at).toLocaleString('en-NG')}</p>
+            </article>)}
+          </div>}
+          {payoutHasMore && <div className="border-t border-hairline p-3 text-center"><button type="button" disabled={queueLoading} onClick={loadMorePayouts} className="text-sm font-semibold text-pepper disabled:opacity-50">Load older payouts</button></div>}
+        </section>
+
+        <section className="overflow-hidden rounded-2xl border border-hairline bg-paper">
+          <div className="border-b border-hairline p-4 sm:p-5"><h3 className="font-display text-lg font-semibold text-ink">Paystack event inbox</h3><p className="mt-1 text-xs text-ink-soft">Webhook delivery and retry history · newest first</p></div>
+          {queueLoading && !events.length ? <p className="p-6 text-sm text-ink-soft">Loading provider events…</p> : !events.length ? <p className="p-6 text-sm text-ink-soft">No provider events recorded yet.</p> : <div className="divide-y divide-hairline">
+            {events.map(item => <article key={item.id} className="px-4 py-3">
+              <div className="flex items-center justify-between gap-3"><p className="truncate text-sm font-semibold text-ink">{item.event_type}</p><span className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase ${item.state === 'failed' ? 'bg-danger/10 text-danger' : 'bg-sand text-ink-soft'}`}>{item.state}</span></div>
+              <p className="mt-1 truncate font-mono text-[10px] text-ink-soft">{item.provider_reference || item.id}</p>
+              <p className="mt-1 text-[10px] text-ink-soft">Attempts: {item.attempt_count} · {new Date(item.received_at).toLocaleString('en-NG')}</p>
+              {item.last_error_message && <p className="mt-1 text-xs text-danger">{item.last_error_message}</p>}
+            </article>)}
+          </div>}
+          {eventHasMore && <div className="border-t border-hairline p-3 text-center"><button type="button" disabled={queueLoading} onClick={loadMoreEvents} className="text-sm font-semibold text-pepper disabled:opacity-50">Load older events</button></div>}
+        </section>
+      </div>
+
       <div className="overflow-hidden rounded-2xl border border-hairline bg-paper">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline p-4 sm:p-5">
+          <div><h3 className="font-display text-lg font-semibold text-ink">Financial journal history</h3>      <div className="overflow-hidden rounded-2xl border border-hairline bg-paper">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline p-4 sm:p-5">
           <div><h3 className="font-display text-lg font-semibold text-ink">Financial journal history</h3><p className="mt-1 text-xs text-ink-soft">Newest first · 25 records per request · cursor pagination</p></div>
           <span className="rounded-full border border-hairline px-3 py-1 text-xs font-medium text-ink-soft">NGN · Read only</span>
