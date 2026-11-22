@@ -2,6 +2,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { supabaseAdmin } from '../config/supabase.js';
 import { initializeTransaction } from '../utils/paystack.js';
 import { calculateOrderAllocation } from '../utils/walletPricing.js';
+import { normalizeNigerianState } from '../utils/nigeriaStates.js';
+import { assertRestaurantDeliveryArea } from '../utils/deliveryAreas.js';
+import { normalizeSelectedExtras, extrasTotalKobo } from '../utils/menuExtras.js';
 
 const VALID_TRANSITIONS = {
   pending: ['confirmed', 'cancelled'],
@@ -13,181 +16,136 @@ const VALID_TRANSITIONS = {
   cancelled: [],
 };
 
-export async function checkout(req, res, next) {
-  try {
-    const { delivery_address, delivery_lat, delivery_lng } = req.body;
-
-    const { data: carts, error: cartsError } = await supabaseAdmin
-      .from('carts')
-      .select('id, restaurant_id')
-      .eq('user_id', req.user.id);
-    if (cartsError) throw cartsError;
-    if (!carts?.length) return res.status(400).json({ error: 'Your cart is empty.' });
-
-    const { data: walletSettings, error: settingsError } = await supabaseAdmin
-      .from('wallet_settings')
-      .select('restaurant_commission_bps,rider_commission_bps,restaurant_delivery_fee_kobo')
-      .eq('id', 1).single();
-    if (settingsError) throw settingsError;
-    const checkoutGroupId = uuidv4();
-    const createdOrders = [];
-    const splitSubaccounts = [];
-    let grandTotalKobo = 0;
-
-    for (const cart of carts) {
-      const { data: cartItems, error: cartItemsError } = await supabaseAdmin
-        .from('cart_items')
-        .select('quantity, special_instructions, menu_items(id, name, price, is_available, restaurant_id)')
-        .eq('cart_id', cart.id);
-      if (cartItemsError) throw cartItemsError;
-      if (!cartItems?.length) continue;
-
-      const unavailable = cartItems.find((ci) =>
-        !ci.menu_items || !ci.menu_items.is_available || ci.menu_items.restaurant_id !== cart.restaurant_id);
-      if (unavailable) {
-        return res.status(400).json({ error: `${unavailable.menu_items?.name || 'A cart item'} is no longer available. Please update your cart.` });
-      }
-
-      const { data: restaurant, error: restaurantError } = await supabaseAdmin
-        .from('restaurants')
-        .select('id, name, is_open, approval_status, paystack_subaccount_code')
-        .eq('id', cart.restaurant_id)
-        .single();
-      if (restaurantError || !restaurant) return res.status(404).json({ error: 'Restaurant not found.' });
-      if (!restaurant.is_open) return res.status(400).json({ error: `${restaurant.name} is currently closed.` });
-      if (restaurant.approval_status !== 'approved') {
-        return res.status(400).json({ error: `${restaurant.name} is not approved to receive orders yet.` });
-      }
-      if (!restaurant.paystack_subaccount_code) {
-        return res.status(400).json({ error: `${restaurant.name} has not completed its payout setup and cannot accept paid orders yet.` });
-      }
-
-      const foodTotalKobo = cartItems.reduce((sum, ci) =>
-        sum + Math.round(Number(ci.menu_items.price) * 100) * ci.quantity, 0);
-      if (!Number.isSafeInteger(foodTotalKobo) || foodTotalKobo <= 0) {
-        return res.status(400).json({ error: 'Invalid cart total. Please refresh your cart.' });
-      }
-      let allocation;
-      try {
-        allocation = calculateOrderAllocation(foodTotalKobo, walletSettings);
-      } catch (allocationError) {
-        return res.status(400).json({ error: allocationError.message });
-      }
-      const subtotal = foodTotalKobo / 100;
-      const total_amount = subtotal;
-      const platform_commission = allocation.platformGrossCommissionKobo / 100;
-      const restaurantShareKobo = allocation.restaurantShareKobo;
-
-      const { data: order, error: orderError } = await supabaseAdmin
-        .from('orders')
-        .insert({
-          user_id: req.user.id,
-          restaurant_id: restaurant.id,
-          status: 'pending',
-          subtotal,
-          delivery_fee: 0,
-          total_amount,
-          platform_commission,
-          rider_payout_amount: allocation.riderPayoutKobo / 100,
-          restaurant_delivery_cost_kobo: allocation.deliveryCostKobo,
-          restaurant_commission_bps: walletSettings.restaurant_commission_bps,
-          rider_commission_bps: walletSettings.rider_commission_bps,
-          rider_commission_kobo: allocation.riderCommissionKobo,
-          restaurant_net_amount: restaurantShareKobo / 100,
-          delivery_address,
-          delivery_lat,
-          delivery_lng,
-          payment_status: 'pending',
-          checkout_group_id: checkoutGroupId,
-        })
-        .select()
-        .single();
-      if (orderError) throw orderError;
-
-      const orderItemsPayload = cartItems.map((ci) => ({
-        order_id: order.id,
-        menu_item_id: ci.menu_items.id,
-        name_snapshot: ci.menu_items.name,
-        price_snapshot: ci.menu_items.price,
-        quantity: ci.quantity,
-        subtotal: Number(ci.menu_items.price) * ci.quantity,
-      }));
-      const { error: orderItemsError } = await supabaseAdmin.from('order_items').insert(orderItemsPayload);
-      if (orderItemsError) throw orderItemsError;
-
-      const { error: trackingError } = await supabaseAdmin
-        .from('delivery_tracking')
-        .insert({ order_id: order.id, status: 'pending' });
-      if (trackingError) throw trackingError;
-
-      createdOrders.push(order);
-      splitSubaccounts.push({ subaccount: restaurant.paystack_subaccount_code, shareKobo: restaurantShareKobo });
-      grandTotalKobo += allocation.customerTotalKobo;
+async function buildCheckoutQuote(userId, input) {
+  const state=normalizeNigerianState(input.delivery_state);
+  const lat=Number(input.delivery_lat),lng=Number(input.delivery_lng);
+  if(!input.delivery_address?.trim()||!state||input.delivery_lat==null||input.delivery_lng==null||
+     !Number.isFinite(lat)||!Number.isFinite(lng)||lat < -90||lat > 90||lng < -180||lng > 180) {
+    throw new Error('Enter a delivery address, select your state and pin your delivery location before checkout.');
+  }
+  const {data:carts,error:cartsError}=await supabaseAdmin.from('carts').select('id,restaurant_id').eq('user_id',userId);
+  if(cartsError)throw cartsError;
+  if(!carts?.length)throw new Error('Your cart is empty.');
+  const {data:settings,error:settingsError}=await supabaseAdmin.from('wallet_settings')
+    .select('restaurant_commission_bps,allow_interstate_delivery').eq('id',1).single();
+  if(settingsError)throw settingsError;
+  const {data:zone,error:zoneError}=await supabaseAdmin.from('delivery_zones').select('*').eq('state',state).maybeSingle();
+  if(zoneError)throw zoneError;
+  if(!zone?.is_active||zone.base_fee_kobo==null||zone.per_km_fee_kobo==null||zone.max_distance_km==null) {
+    throw new Error('Delivery is not configured for this state yet. Please choose another address or contact support.');
+  }
+  const prepared=[];
+  let foodTotalKobo=0,deliveryTotalKobo=0,grandTotalKobo=0;
+  for(const cart of carts) {
+    const {data:cartItems,error:itemsError}=await supabaseAdmin.from('cart_items')
+      .select('quantity,special_instructions,selected_extras,menu_items(id,name,price,is_available,restaurant_id,extras)')
+      .eq('cart_id',cart.id);
+    if(itemsError)throw itemsError;
+    if(!cartItems?.length)continue;
+    const unavailable=cartItems.find(ci=>!ci.menu_items||!ci.menu_items.is_available||ci.menu_items.restaurant_id!==cart.restaurant_id);
+    if(unavailable)throw new Error(`${unavailable.menu_items?.name||'A cart item'} is no longer available. Refresh your cart.`);
+    const {data:restaurant,error:restaurantError}=await supabaseAdmin.from('restaurants')
+      .select('id,name,is_open,approval_status,paystack_subaccount_code,state,lat,lng,service_area_verified')
+      .eq('id',cart.restaurant_id).single();
+    if(restaurantError||!restaurant)throw new Error('Restaurant not found.');
+    if(!restaurant.is_open)throw new Error(`${restaurant.name} is currently closed.`);
+    if(restaurant.approval_status!=='approved'||!restaurant.service_area_verified)throw new Error(`${restaurant.name} is not approved and verified for delivery yet.`);
+    if(!restaurant.paystack_subaccount_code)throw new Error(`${restaurant.name} has not completed payout setup and cannot accept paid orders yet.`);
+    const area=assertRestaurantDeliveryArea({restaurant,destinationState:state,deliveryLat:lat,deliveryLng:lng,zone,allowInterstate:settings.allow_interstate_delivery===true});
+    const itemRows=[];
+    let restaurantFoodKobo=0;
+    for(const ci of cartItems) {
+      const quantity=Number(ci.quantity),unitKobo=Math.round(Number(ci.menu_items.price)*100);
+      if(!Number.isSafeInteger(quantity)||quantity<1||quantity>100||!Number.isSafeInteger(unitKobo)||unitKobo<0)throw new Error('A cart item has an invalid price or quantity. Refresh your cart.');
+      const extras=normalizeSelectedExtras(ci.menu_items.extras,ci.selected_extras||[]);
+      const lineKobo=unitKobo*quantity+extrasTotalKobo(extras)*quantity;
+      if(!Number.isSafeInteger(lineKobo))throw new Error('The cart total is too large.');
+      restaurantFoodKobo+=lineKobo;
+      itemRows.push({
+        menu_item_id:ci.menu_items.id,name_snapshot:ci.menu_items.name,price_snapshot:Number(ci.menu_items.price),
+        quantity,subtotal:lineKobo/100,
+        extras_snapshot:extras.map(extra=>({extra_id:extra.extra_id,name:extra.name,unit_price_kobo:extra.unit_price_kobo,quantity:extra.quantity,line_total_kobo:extra.line_total_kobo*quantity})),
+      });
     }
+    if(!Number.isSafeInteger(restaurantFoodKobo)||restaurantFoodKobo<=0)throw new Error('Invalid cart total. Refresh your cart.');
+    const allocation=calculateOrderAllocation(restaurantFoodKobo,area.deliveryFeeKobo,settings);
+    prepared.push({cart,restaurant,itemRows,foodKobo:restaurantFoodKobo,deliveryKobo:area.deliveryFeeKobo,distanceKm:area.distanceKm,allocation});
+    foodTotalKobo+=restaurantFoodKobo;deliveryTotalKobo+=area.deliveryFeeKobo;grandTotalKobo+=allocation.customerTotalKobo;
+  }
+  if(!prepared.length)throw new Error('Your cart is empty.');
+  return {prepared,settings,state,grandTotalKobo,quote:{
+    subtotal:foodTotalKobo/100,delivery_fee:deliveryTotalKobo/100,total_amount:grandTotalKobo/100,delivery_state:state,
+    deliveries:prepared.map(row=>({restaurant_id:row.restaurant.id,restaurant_name:row.restaurant.name,distance_km:Number(row.distanceKm.toFixed(2)),delivery_fee:row.deliveryKobo/100})),
+  }};
+}
 
-    if (!createdOrders.length) return res.status(400).json({ error: 'Your cart is empty.' });
+export async function quoteCheckout(req,res,next) {
+  try {
+    const result=await buildCheckoutQuote(req.user.id,req.body);
+    res.set('Cache-Control','private, no-store');
+    res.json(result.quote);
+  } catch(err) {
+    if(err.message&&/cart|delivery|restaurant|state|price|payout|available|address|location|extra|checkout/i.test(err.message))return res.status(400).json({error:err.message});
+    next(err);
+  }
+}
 
-    const reference = `delixious_${uuidv4()}`;
-
-    // Create the local payment record before calling the provider so every
-    // initialized payment has a durable internal reference, even if the
-    // provider call or a later database operation fails.
-    const { error: paymentCreateError } = await supabaseAdmin.from('payments').insert({
-      checkout_group_id: checkoutGroupId,
-      provider: 'paystack',
-      reference,
-      amount: grandTotalKobo / 100,
-      status: 'pending',
-    });
-    if (paymentCreateError) throw paymentCreateError;
-
+export async function checkout(req,res,next) {
+  try {
+    const result=await buildCheckoutQuote(req.user.id,req.body);
+    const checkoutGroupId=uuidv4(),createdOrders=[],splitSubaccounts=[];
+    for(const row of result.prepared) {
+      const {restaurant,itemRows,foodKobo,deliveryKobo,distanceKm,allocation}=row;
+      const {data:order,error:orderError}=await supabaseAdmin.from('orders').insert({
+        user_id:req.user.id,restaurant_id:restaurant.id,status:'pending',
+        subtotal:foodKobo/100,delivery_fee:deliveryKobo/100,total_amount:allocation.customerTotalKobo/100,
+        platform_commission:allocation.platformGrossCommissionKobo/100,rider_payout_amount:allocation.riderPayoutKobo/100,
+        restaurant_delivery_cost_kobo:0,restaurant_commission_bps:result.settings.restaurant_commission_bps,
+        rider_commission_bps:0,rider_commission_kobo:0,restaurant_net_amount:allocation.restaurantShareKobo/100,
+        customer_delivery_fee_kobo:deliveryKobo,delivery_distance_km:Number(distanceKm.toFixed(3)),
+        delivery_zone_state:result.state,destination_state:result.state,
+        delivery_address:req.body.delivery_address.trim(),delivery_lat:Number(req.body.delivery_lat),delivery_lng:Number(req.body.delivery_lng),
+        payment_status:'pending',checkout_group_id:checkoutGroupId,
+      }).select().single();
+      if(orderError)throw orderError;
+      const {error:itemError}=await supabaseAdmin.from('order_items').insert(itemRows.map(item=>({...item,order_id:order.id})));
+      if(itemError)throw itemError;
+      const {error:trackingError}=await supabaseAdmin.from('delivery_tracking').insert({order_id:order.id,status:'pending'});
+      if(trackingError)throw trackingError;
+      createdOrders.push(order);
+      splitSubaccounts.push({subaccount:restaurant.paystack_subaccount_code,shareKobo:allocation.restaurantShareKobo});
+    }
+    const reference=`delixious_${uuidv4()}`;
+    const {error:paymentError}=await supabaseAdmin.from('payments').insert({checkout_group_id:checkoutGroupId,provider:'paystack',reference,amount:result.grandTotalKobo/100,status:'pending'});
+    if(paymentError)throw paymentError;
     let paystackResponse;
     try {
-      paystackResponse = await initializeTransaction({
-        email: req.user.email,
-        amountKobo: grandTotalKobo,
-        reference,
-        callback_url: `${process.env.FRONTEND_URL}/order-confirmation?checkout_group_id=${encodeURIComponent(checkoutGroupId)}&reference=${encodeURIComponent(reference)}`,
-        metadata: { checkout_group_id: checkoutGroupId, user_id: req.user.id },
-        splitSubaccounts,
+      paystackResponse=await initializeTransaction({
+        email:req.user.email,amountKobo:result.grandTotalKobo,reference,
+        callback_url:`${process.env.FRONTEND_URL}/order-confirmation?checkout_group_id=${encodeURIComponent(checkoutGroupId)}&reference=${encodeURIComponent(reference)}`,
+        metadata:{checkout_group_id:checkoutGroupId,user_id:req.user.id},splitSubaccounts,
       });
-    } catch (paymentError) {
-      await supabaseAdmin.from('payments').update({ status: 'failed' }).eq('reference', reference);
-      await supabaseAdmin.from('orders').delete().eq('checkout_group_id', checkoutGroupId).eq('payment_status', 'pending');
+    } catch(paymentError) {
+      await supabaseAdmin.from('payments').update({status:'failed'}).eq('reference',reference);
+      await supabaseAdmin.from('orders').delete().eq('checkout_group_id',checkoutGroupId).eq('payment_status','pending');
       throw paymentError;
     }
-
-    if (!paystackResponse.status) {
-      await supabaseAdmin.from('payments').update({ status: 'failed' }).eq('reference', reference);
-      await supabaseAdmin.from('orders').delete().eq('checkout_group_id', checkoutGroupId).eq('payment_status', 'pending');
-      return res.status(502).json({ error: 'Could not initialize payment. Please try again.' });
+    if(!paystackResponse.status) {
+      await supabaseAdmin.from('payments').update({status:'failed'}).eq('reference',reference);
+      await supabaseAdmin.from('orders').delete().eq('checkout_group_id',checkoutGroupId).eq('payment_status','pending');
+      return res.status(502).json({error:'Could not initialize payment. Please try again.'});
     }
-
-    const { error: orderReferenceError } = await supabaseAdmin
-      .from('orders')
-      .update({ payment_reference: reference })
-      .eq('checkout_group_id', checkoutGroupId);
-    if (orderReferenceError) {
-      await supabaseAdmin.from('payments').update({ status: 'failed' }).eq('reference', reference);
-      await supabaseAdmin.from('orders').delete().eq('checkout_group_id', checkoutGroupId).eq('payment_status', 'pending');
-      throw orderReferenceError;
+    const {error:referenceError}=await supabaseAdmin.from('orders').update({payment_reference:reference}).eq('checkout_group_id',checkoutGroupId);
+    if(referenceError) {
+      await supabaseAdmin.from('payments').update({status:'failed'}).eq('reference',reference);
+      await supabaseAdmin.from('orders').delete().eq('checkout_group_id',checkoutGroupId).eq('payment_status','pending');
+      throw referenceError;
     }
-
-    // Payment initialization is NOT proof of payment. Retain the cart so
-    // abandoned or unsuccessful Paystack checkouts can be retried.
-    // Purchased items are removed only after a verified successful charge.
-
-    res.status(201).json({
-      message: 'Orders created. Redirect the customer to authorization_url to complete payment.',
-      orders: createdOrders,
-      checkout_group_id: checkoutGroupId,
-      payment: {
-        reference,
-        authorization_url: paystackResponse.data.authorization_url,
-        access_code: paystackResponse.data.access_code,
-      },
-    });
-  } catch (err) {
+    res.status(201).json({message:'Orders created. Redirect the customer to Paystack to complete payment.',orders:createdOrders,checkout_group_id:checkoutGroupId,quote:result.quote,payment:{
+      reference,authorization_url:paystackResponse.data.authorization_url,access_code:paystackResponse.data.access_code,
+    }});
+  } catch(err) {
+    if(err.message&&/cart|delivery|restaurant|state|price|payout|available|address|location|extra|checkout/i.test(err.message))return res.status(400).json({error:err.message});
     next(err);
   }
 }
