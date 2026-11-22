@@ -110,8 +110,10 @@ async function payoutRider(order) {
       last_error_code: 'RECIPIENT_NOT_READY',
       last_error_message: 'Rider payout recipient has not been verified.',
     });
-    await supabaseAdmin.from('orders').update({ rider_payout_status: 'failed' }).eq('id', order.id).eq('rider_payout_status', 'processing');
-    if (holdError) console.error('Unable to place rider payout on hold', { orderId: order.id, message: holdError.message });
+    if (holdError) {
+      console.error('Unable to place rider payout on hold', { orderId: order.id, message: holdError.message });
+      await supabaseAdmin.from('orders').update({ rider_payout_status: 'failed' }).eq('id', order.id).eq('rider_payout_status', 'processing');
+    }
     return;
   }
 
@@ -129,6 +131,16 @@ async function payoutRider(order) {
   if (payoutInsertError) {
     await supabaseAdmin.from('orders').update({ rider_payout_status: 'failed' }).eq('id', order.id).eq('rider_payout_status', 'processing');
     console.error('Rider payout queue record could not be created', { orderId: order.id, message: payoutInsertError.message });
+    return;
+  }
+
+  if (process.env.ENABLE_AUTOMATIC_RIDER_PAYOUTS !== 'true') {
+    await supabaseAdmin.from('financial_payouts').update({
+      status: 'on_hold',
+      last_error_code: 'AUTOMATIC_PAYOUTS_NOT_CERTIFIED',
+      last_error_message: 'Automatic payouts remain paused until settlement reconciliation and live transfer tests are approved.',
+      updated_at: new Date().toISOString(),
+    }).eq('provider_reference', reference).eq('status', 'processing');
     return;
   }
 
