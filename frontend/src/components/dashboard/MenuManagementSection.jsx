@@ -207,7 +207,7 @@ export default function MenuManagementSection({ restaurant }) {
 
 function MenuItemForm({ restaurantId, item, onSaved, onCancel }) {
   const isEdit = Boolean(item);
-  const [form, setForm] = useState({ name: item?.name || '', description: item?.description || '', price: item?.price ?? '', category: item?.category || CATEGORIES[1], image_url: item?.image_url || '' });
+  const [form, setForm] = useState({ name: item?.name || '', description: item?.description || '', price: item?.price ?? '', category: item?.category || CATEGORIES[1], image_url: item?.image_url || '', extras: Array.isArray(item?.extras) ? item.extras.map(extra => ({ ...extra })) : [] });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -216,7 +216,9 @@ function MenuItemForm({ restaurantId, item, onSaved, onCancel }) {
     if (!form.name.trim() || form.price === '' || Number(form.price) < 0 || !Number.isFinite(Number(form.price))) { setError('Enter a product name and a valid non-negative price.'); return; }
     setSaving(true); setError('');
     try {
-      const payload = { ...form, price: Number(form.price) };
+      const extras = form.extras.filter(extra => extra.name.trim() !== '' || extra.price !== '').map(extra => ({ ...(extra.id ? { id: extra.id } : {}), name: extra.name.trim(), price: Number(extra.price) }));
+      if (extras.some(extra => !extra.name || !Number.isFinite(extra.price) || extra.price < 0)) { setError('Enter a name and valid price for each extra.'); setSaving(false); return; }
+      const payload = { ...form, extras, price: Number(form.price) };
       const { data } = isEdit ? await api.put(`/menu-items/${item.id}`, payload) : await api.post(`/restaurants/${restaurantId}/menu`, payload);
       onSaved(data.menu_item);
     } catch (err) { setError(err.response?.data?.error || 'Could not save this product.'); }
@@ -238,6 +240,20 @@ function MenuItemForm({ restaurantId, item, onSaved, onCancel }) {
             </select>
           </label>
           <FormField label="Description" as="textarea" rows={3} value={form.description} onChange={value => setForm(current => ({ ...current, description: value }))} />
+          <div className="rounded-xl border border-hairline bg-sand/40 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div><p className="text-sm font-semibold text-ink">Optional extras</p><p className="text-xs text-ink-soft">Add paid additions customers can choose for this dish only.</p></div>
+              <button type="button" onClick={() => setForm(current => ({ ...current, extras: [...current.extras, { name: '', price: '' }] }))} className="min-h-9 rounded-lg border border-hairline bg-paper px-3 text-xs font-semibold text-pepper">Add extra</button>
+            </div>
+            {form.extras.length > 0 && <div className="mt-3 space-y-2">
+              {form.extras.map((extra,index) => <div key={extra.id || index} className="grid grid-cols-[minmax(0,1fr)_100px_36px] gap-2">
+                <input aria-label={`Extra ${index+1} name`} value={extra.name} maxLength={80} onChange={event => setForm(current => ({...current,extras:current.extras.map((row,i)=>i===index?{...row,name:event.target.value}:row)}))} placeholder="e.g. Turkey" className="min-w-0 rounded-lg border border-hairline bg-paper px-3 py-2 text-sm text-ink"/>
+                <input aria-label={`Extra ${index+1} price in naira`} type="number" min="0" step="0.01" value={extra.price} onChange={event => setForm(current => ({...current,extras:current.extras.map((row,i)=>i===index?{...row,price:event.target.value}:row)}))} placeholder="₦ price" className="w-full rounded-lg border border-hairline bg-paper px-2 py-2 text-sm text-ink"/>
+                <button type="button" aria-label={`Remove ${extra.name || 'extra'}`} onClick={() => setForm(current => ({...current,extras:current.extras.filter((_,i)=>i!==index)}))} className="grid h-10 w-9 place-items-center rounded-lg border border-hairline text-danger"><Icon name="trash-2" size={15}/></button>
+              </div>)}
+            </div>}
+            {form.extras.length > 0 && <p className="mt-2 text-[11px] text-ink-soft">Customers can set a quantity for each extra. Leave this section empty when the dish has no add-ons.</p>}
+          </div>
         </div>
         {error && <p role="alert" className="mt-4 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
         <div className="mt-5 flex flex-wrap justify-end gap-2">
