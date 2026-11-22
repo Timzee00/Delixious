@@ -24,12 +24,12 @@ export default function FoodCard({ item, onAdd, adding }) {
         <p className="mt-1 truncate text-xs text-ink-soft">{restaurant?.name || 'Restaurant'}</p>
         <div className="mt-auto flex items-center justify-between gap-2 border-t border-[#F3E8E0] pt-3">
           <span className="font-display text-base font-bold text-pepper sm:text-lg">{formatNaira(item.price)}</span>
-          <button type="button" onClick={() => onAdd?.(item)} disabled={adding || closed || !onAdd}
+          {item.extras?.length ? <Link to={destination} className="inline-flex min-h-9 items-center justify-center rounded-full bg-pepper px-3.5 py-2 text-xs font-bold text-white hover:bg-pepper-dark">Choose options</Link> : <button type="button" onClick={() => onAdd?.(item)} disabled={adding || closed || !onAdd}
             aria-label={'Add ' + item.name + ' to cart'} aria-busy={Boolean(adding)}
             className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-full bg-pepper px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-pepper-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pepper disabled:cursor-not-allowed disabled:bg-ink-soft">
             {closed ? 'Closed' : adding ? 'Adding…' : 'Add'}
             {!closed && !adding && <Icon name="plus" size={14}/>}
-          </button>
+          </button>}
         </div>
       </div>
     </article>
