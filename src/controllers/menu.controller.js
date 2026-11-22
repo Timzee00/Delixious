@@ -1,7 +1,8 @@
+import { randomUUID } from 'node:crypto';
 import { supabaseAdmin } from '../config/supabase.js';
 
 const FEED_FIELDS = `
-  id, name, description, price, image_url, category, is_available, created_at, restaurant_id,
+  id, name, description, price, image_url, category, is_available, extras, created_at, restaurant_id,
   restaurants!inner(id, slug, name, business_types, logo_url, cover_image_url, cuisine_type, is_open, rating_avg, rating_count, approval_status)
 `;
 
@@ -64,7 +65,7 @@ export async function getRestaurantMenu(req, res, next) {
     const from = (page - 1) * limit;
 
     let query = supabaseAdmin.from('menu_items')
-      .select('id,name,description,price,image_url,category,is_available,restaurant_id,created_at', { count: 'exact' })
+      .select('id,name,description,price,image_url,category,is_available,extras,restaurant_id,created_at', { count: 'exact' })
       .eq('restaurant_id', restaurant.id)
       .eq('is_available', true);
 
@@ -89,10 +90,18 @@ export async function getRestaurantMenu(req, res, next) {
   } catch (err) { next(err); }
 }
 
+function normalizeMenuExtras(extras = [], current = []) {
+  const currentIds = new Set((Array.isArray(current) ? current : []).map(extra => extra.id));
+  return (Array.isArray(extras) ? extras : []).map(extra => ({
+    id: extra.id && currentIds.has(extra.id) ? extra.id : randomUUID(),
+    name: String(extra.name).trim(), price: Number(extra.price),
+  }));
+}
 export async function createMenuItem(req, res, next) {
   try {
+    const payload = { ...req.body, extras: normalizeMenuExtras(req.body.extras), restaurant_id: req.restaurant.id };
     const { data, error } = await supabaseAdmin.from('menu_items')
-      .insert({ ...req.body, restaurant_id: req.restaurant.id })
+      .insert(payload)
       .select().single();
     if (error) return res.status(400).json({ error: error.message });
     res.status(201).json({ message: 'Menu item created.', menu_item: data });
@@ -101,7 +110,13 @@ export async function createMenuItem(req, res, next) {
 
 export async function updateMenuItem(req, res, next) {
   try {
-    const { data, error } = await supabaseAdmin.from('menu_items').update(req.body)
+    const payload = { ...req.body };
+    if (payload.extras !== undefined) {
+      const { data: current, error: currentError } = await supabaseAdmin.from('menu_items').select('extras').eq('id', req.menuItem.id).single();
+      if (currentError) throw currentError;
+      payload.extras = normalizeMenuExtras(payload.extras, current?.extras || []);
+    }
+    const { data, error } = await supabaseAdmin.from('menu_items').update(payload)
       .eq('id', req.menuItem.id).select().single();
     if (error) return res.status(400).json({ error: error.message });
     res.json({ message: 'Menu item updated.', menu_item: data });
