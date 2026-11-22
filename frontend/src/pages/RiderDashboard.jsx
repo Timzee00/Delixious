@@ -5,6 +5,7 @@ import AvailableDeliveriesSection from '../components/rider/AvailableDeliveriesS
 import MyDeliveriesSection from '../components/rider/MyDeliveriesSection.jsx';
 import EarningsSection from '../components/rider/EarningsSection.jsx';
 import PayoutSetupSection from '../components/rider/PayoutSetupSection.jsx';
+import RiderServiceAreaSection from '../components/rider/RiderServiceAreaSection.jsx';
 import Icon from '../components/ui/Icon.jsx';
 import SceneIllustration from '../components/ui/SceneIllustration.jsx';
 
@@ -13,6 +14,7 @@ const TABS = [
   { id: 'My Deliveries', label: 'My deliveries', icon: 'truck' },
   { id: 'Earnings', label: 'Earnings', icon: 'banknote' },
   { id: 'Payout Setup', label: 'Payout setup', icon: 'bank' },
+  { id: 'Service Area', label: 'Service area', icon: 'map-pin' },
 ];
 
 export default function RiderDashboard() {
@@ -48,6 +50,7 @@ export default function RiderDashboard() {
         {tab === 'My Deliveries' && <MyDeliveriesSection/>}
         {tab === 'Earnings' && <EarningsSection/>}
         {tab === 'Payout Setup' && <PayoutSetupSection/>}
+        {tab === 'Service Area' && <RiderServiceAreaSection/>}
       </div>
     </div>
   );
