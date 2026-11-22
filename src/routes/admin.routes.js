@@ -8,6 +8,8 @@ import {
   listUsersAdminQuerySchema,
   listQuerySchema,
   broadcastSchema,
+  deliveryZoneSchema,
+  interstateDeliverySchema,
 } from '../schemas/admin.schema.js';
 import {
   getStats,
@@ -19,6 +21,9 @@ import {
   setUserSuspension,
   listOrdersAdmin,
   sendBroadcast,
+  listDeliveryZones,
+  saveDeliveryZone,
+  setInterstateDelivery,
 } from '../controllers/admin.controller.js';
 
 const router = Router();
@@ -27,6 +32,9 @@ const router = Router();
 router.use(requireAuth, requireRole('admin'));
 
 router.get('/stats', getStats);
+router.get('/delivery-zones',listDeliveryZones);
+router.put('/delivery-zones/:state',validate({body:deliveryZoneSchema}),saveDeliveryZone);
+router.patch('/delivery-settings/interstate',validate({body:interstateDeliverySchema}),setInterstateDelivery);
 
 router.get('/restaurants', validate({ query: listRestaurantsAdminQuerySchema }), listRestaurantsAdmin);
 router.patch('/restaurants/:id/approval', validate({ body: approvalStatusSchema }), setRestaurantApproval);
