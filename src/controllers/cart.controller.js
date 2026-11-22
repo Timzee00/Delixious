@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../config/supabase.js';
 import { getUserActiveCart } from '../utils/cart.js';
+import { normalizeSelectedExtras, extrasTotalKobo } from '../utils/menuExtras.js';
 
 export async function getCart(req, res, next) {
   try {
@@ -13,20 +14,22 @@ export async function getCart(req, res, next) {
       .select(
         `id, created_at, updated_at,
          restaurants(id, name, logo_url, is_open),
-         cart_items(id, quantity, special_instructions, menu_items(id, name, price, image_url, is_available))`
+         cart_items(id, quantity, special_instructions, selected_extras, menu_items(id, name, price, image_url, is_available, extras))`
       )
       .eq('id', activeCart.id)
       .single();
 
     if (error) throw error;
 
-    const items = (cart.cart_items || []).map((ci) => ({
-      id: ci.id,
-      quantity: ci.quantity,
-      special_instructions: ci.special_instructions,
-      menu_item: ci.menu_items,
-      line_total: Number(ci.menu_items.price) * ci.quantity,
-    }));
+    const items = (cart.cart_items || []).map((ci) => {
+      let selected = [], extras_valid = true;
+      try { selected = normalizeSelectedExtras(ci.menu_items?.extras, ci.selected_extras || []); } catch { extras_valid = false; }
+      const baseKobo = Math.round(Number(ci.menu_items.price) * 100) * ci.quantity;
+      const extrasKobo = extras_valid ? extrasTotalKobo(selected) * ci.quantity : 0;
+      return { id:ci.id, quantity:ci.quantity, special_instructions:ci.special_instructions,
+        selected_extras:ci.selected_extras||[], selected_extras_snapshot:selected, extras_valid,
+        menu_item:ci.menu_items, line_total:(baseKobo+extrasKobo)/100 };
+    });
 
     const subtotal = items.reduce((sum, i) => sum + i.line_total, 0);
 
@@ -42,16 +45,17 @@ export async function getCart(req, res, next) {
 
 export async function addItemToCart(req, res, next) {
   try {
-    const { menu_item_id, quantity, special_instructions, replace } = req.body;
+    const { menu_item_id, quantity, special_instructions, replace, selected_extras = [] } = req.body;
 
     const { data: menuItem, error: menuItemError } = await supabaseAdmin
       .from('menu_items')
-      .select('id, restaurant_id, is_available, restaurants(is_open)')
+      .select('id, restaurant_id, is_available, extras, restaurants(is_open)')
       .eq('id', menu_item_id)
       .single();
 
     if (menuItemError || !menuItem) return res.status(404).json({ error: 'Menu item not found.' });
     if (!menuItem.is_available) return res.status(400).json({ error: 'This item is currently unavailable.' });
+    try { normalizeSelectedExtras(menuItem.extras, selected_extras); } catch (extrasError) { return res.status(400).json({ error: extrasError.message }); }
     if (!menuItem.restaurants?.is_open) {
       return res.status(400).json({ error: 'This restaurant is currently closed.' });
     }
@@ -103,11 +107,13 @@ export async function addItemToCart(req, res, next) {
 
     let item;
     if (existingItem) {
+      if (JSON.stringify(existingItem.selected_extras || []) !== JSON.stringify(selected_extras || [])) return res.status(409).json({ error: 'This dish is already in your cart with different extras. Remove it before adding another configuration.' });
       const { data: updated, error: updateError } = await supabaseAdmin
         .from('cart_items')
         .update({
           quantity: existingItem.quantity + Number(quantity),
           special_instructions: special_instructions ?? existingItem.special_instructions,
+          selected_extras,
         })
         .eq('id', existingItem.id)
         .select()
@@ -117,7 +123,7 @@ export async function addItemToCart(req, res, next) {
     } else {
       const { data: created, error: createError } = await supabaseAdmin
         .from('cart_items')
-        .insert({ cart_id: cart.id, menu_item_id, quantity, special_instructions })
+        .insert({ cart_id: cart.id, menu_item_id, quantity, special_instructions, selected_extras })
         .select()
         .single();
       if (createError) throw createError;
