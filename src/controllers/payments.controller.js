@@ -125,6 +125,7 @@ async function handleSuccessfulPayment(data, { retryBusy = false, alreadyVerifie
     const { data: restaurantWallets, error: walletLookupError } = await supabaseAdmin
       .from('wallet_accounts')
       .select('id,restaurant_id')
+      .eq('kind', 'restaurant')
       .in('restaurant_id', restaurantIds);
     if (walletLookupError) throw walletLookupError;
     const walletByRestaurant = new Map((restaurantWallets || []).map(wallet => [wallet.restaurant_id, wallet.id]));
