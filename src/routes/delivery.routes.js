@@ -11,6 +11,8 @@ import {
   listAvailableDeliveries,
   claimDelivery,
   searchDeliveryAgents,
+  getRiderServiceArea,
+  updateRiderServiceArea,
 } from '../controllers/delivery.controller.js';
 import {
   assignAgentSchema,
@@ -19,12 +21,15 @@ import {
   searchAgentsQuerySchema,
   availableDeliveriesQuerySchema,
   deliveryListQuerySchema,
+  riderServiceAreaSchema,
 } from '../schemas/delivery.schema.js';
 
 const router = Router();
 
 // NOTE: fixed paths must be registered before /:orderId or Express would
 // treat them as an orderId.
+router.get('/service-area', requireAuth, requireRole('delivery_agent'), getRiderServiceArea);
+router.put('/service-area', requireAuth, requireRole('delivery_agent'), validate({ body: riderServiceAreaSchema }), updateRiderServiceArea);
 router.get('/my-deliveries', requireAuth, requireRole('delivery_agent', 'admin'), validate({ query: deliveryListQuerySchema }), listMyDeliveries);
 router.get('/my-deliveries/history', requireAuth, requireRole('delivery_agent', 'admin'), validate({ query: deliveryListQuerySchema }), listMyDeliveryHistory);
 router.get('/available', requireAuth, requireRole('delivery_agent', 'admin'), validate({ query: availableDeliveriesQuerySchema }), listAvailableDeliveries);
