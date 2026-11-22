@@ -1,9 +1,10 @@
 import { z } from 'zod';
 
 export const checkoutSchema = z.object({
-  delivery_address: z.string().trim().min(1, 'delivery_address is required.'),
-  delivery_lat: z.coerce.number().optional(),
-  delivery_lng: z.coerce.number().optional(),
+  delivery_address: z.string().trim().min(5, 'delivery_address is required.').max(500),
+  delivery_state: z.string().trim().min(2).max(40),
+  delivery_lat: z.coerce.number().finite().min(-90).max(90),
+  delivery_lng: z.coerce.number().finite().min(-180).max(180),
 });
 
 export const updateOrderStatusSchema = z.object({
