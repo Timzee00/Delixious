@@ -76,3 +76,17 @@ export function assertPaystackSplitMatchesOrders(transaction, orders) {
   }
   return true;
 }
+
+
+export function assertPaystackPaymentEnvironment(transaction,payment) {
+  const providerEnvironment=transaction?.domain;
+  const storedEnvironment=payment?.payment_environment;
+  if(!['test','live'].includes(providerEnvironment) ||
+     !['test','live'].includes(storedEnvironment) ||
+     providerEnvironment!==storedEnvironment) {
+    const error=new Error('Paystack payment environment does not match the environment recorded at checkout.');
+    error.code='PAYMENT_ENVIRONMENT_MISMATCH';
+    throw error;
+  }
+  return true;
+}
