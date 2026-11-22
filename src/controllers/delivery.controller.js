@@ -13,7 +13,7 @@ const CLAIMABLE_ORDER_STATUSES = ['confirmed', 'preparing', 'out_for_delivery'];
 async function loadOrderWithRestaurant(orderId) {
   const { data, error } = await supabaseAdmin
     .from('orders')
-    .select('*, restaurants(owner_id)')
+    .select('*, restaurants(owner_id,state,lat,lng,service_area_verified)')
     .eq('id', orderId)
     .single();
   if (error || !data) return null;
@@ -139,16 +139,10 @@ export async function assignAgent(req, res, next) {
       return res.status(400).json({ error: 'This rider is not yet approved to take deliveries.' });
     }
 
-    const { data, error } = await supabaseAdmin
-      .from('delivery_tracking')
-      .update({ delivery_agent_id, status: 'assigned', claimed_at: new Date().toISOString() })
-      .eq('order_id', order.id)
-      .eq('status', 'pending')
-      .is('delivery_agent_id', null)
-      .select()
-      .maybeSingle();
-    if (error) throw error;
-    if (!data) return res.status(409).json({ error: 'This delivery already has a rider. Refresh before assigning again.' });
+    const { data, error } = await supabaseAdmin.rpc('claim_delivery',{p_order_id:order.id,p_rider_id:delivery_agent_id});
+    if(error)throw error;
+    const tracking=Array.isArray(data)?data[0]:data;
+    if(!tracking)return res.status(409).json({error:'This rider is outside the verified service area, or the delivery has already been assigned.'});
 
     await supabaseAdmin.from('notifications').insert({
       user_id: order.user_id,
@@ -156,7 +150,7 @@ export async function assignAgent(req, res, next) {
       body: `${agentProfile.full_name} will be delivering your order.`,
       type: 'order_update',
     });
-    res.json({ message: 'Delivery agent assigned.', delivery_tracking: data });
+    res.json({ message: 'Delivery agent assigned.', delivery_tracking: tracking });
   } catch (err) {
     next(err);
   }
@@ -168,22 +162,20 @@ export async function listAvailableDeliveries(req, res, next) {
       return res.status(403).json({ error: 'Only approved riders can browse available deliveries.' });
     }
     const { page = 1, limit = 20 } = req.query;
-    const from = (page - 1) * limit;
-
-    // Filter in PostgreSQL *before* pagination; fetching and filtering every
-    // pending delivery in JavaScript grows without bounds at marketplace scale.
-    const { data, error, count } = await supabaseAdmin
-      .from('delivery_tracking')
-      .select('order_id, status, updated_at, orders!inner(id, delivery_address, total_amount, rider_payout_amount, status, payment_status, restaurants(name, address))', { count: 'exact' })
-      .eq('status', 'pending')
-      .is('delivery_agent_id', null)
-      .eq('orders.payment_status', 'paid')
-      .in('orders.status', CLAIMABLE_ORDER_STATUSES)
-      .order('updated_at', { ascending: true })
-      .order('order_id', { ascending: true })
-      .range(from, from + limit - 1);
-    if (error) throw error;
-    res.json({ deliveries: data || [], total: count || 0, page, limit });
+    if(req.profile.role==='admin'){
+      const {data,error,count}=await supabaseAdmin.from('delivery_tracking')
+        .select('order_id,status,updated_at,orders!inner(id,delivery_address,total_amount,rider_payout_amount,status,payment_status,restaurants(name,address))',{count:'exact'})
+        .eq('status','pending').is('delivery_agent_id',null).eq('orders.payment_status','paid')
+        .in('orders.status',CLAIMABLE_ORDER_STATUSES).order('updated_at',{ascending:true})
+        .order('order_id',{ascending:true}).range((page-1)*limit,page*limit-1);
+      if(error)throw error;
+      return res.json({deliveries:data||[],total:count||0,page,limit});
+    }
+    if(!req.profile.rider_service_area_verified)return res.status(403).json({error:'Submit your operating area and wait for administrator verification before browsing deliveries.'});
+    const {data,error}=await supabaseAdmin.rpc('list_available_deliveries',{p_rider_id:req.user.id,p_page:page,p_limit:limit});
+    if(error)throw error;
+    const deliveries=(data||[]).map(row=>({order_id:row.order_id,status:row.status,updated_at:row.updated_at,orders:row.orders}));
+    res.json({deliveries,total:Number(data?.[0]?.total_count||0),page,limit});
   } catch (err) {
     next(err);
   }
@@ -201,16 +193,11 @@ export async function claimDelivery(req, res, next) {
       return res.status(400).json({ error: 'This order is not eligible for delivery pickup yet.' });
     }
 
-    const { data, error } = await supabaseAdmin
-      .from('delivery_tracking')
-      .update({ delivery_agent_id: req.user.id, status: 'assigned', claimed_at: new Date().toISOString() })
-      .eq('order_id', req.params.orderId)
-      .eq('status', 'pending')
-      .is('delivery_agent_id', null)
-      .select()
-      .maybeSingle();
-    if (error) throw error;
-    if (!data) return res.status(409).json({ error: 'This delivery has already been claimed by someone else.' });
+    if(!req.profile.rider_service_area_verified)return res.status(403).json({error:'Your operating area has not been verified.'});
+    const {data,error}=await supabaseAdmin.rpc('claim_delivery',{p_order_id:req.params.orderId,p_rider_id:req.user.id});
+    if(error)throw error;
+    const tracking=Array.isArray(data)?data[0]:data;
+    if(!tracking)return res.status(409).json({error:'This delivery is outside your verified operating area, or it has already been claimed.'});
 
     await supabaseAdmin.from('notifications').insert({
       user_id: order.user_id,
@@ -218,7 +205,7 @@ export async function claimDelivery(req, res, next) {
       body: `${req.profile.full_name} will be delivering your order.`,
       type: 'order_update',
     });
-    res.json({ message: 'Delivery claimed.', delivery_tracking: data });
+    res.json({ message: 'Delivery claimed.', delivery_tracking: tracking });
   } catch (err) {
     next(err);
   }
@@ -363,4 +350,28 @@ export async function listMyDeliveryHistory(req, res, next) {
   } catch (err) {
     next(err);
   }
+}
+
+export async function getRiderServiceArea(req,res,next){
+  try{
+    const {data,error}=await supabaseAdmin.from('profiles')
+      .select('rider_operating_state,rider_base_lat,rider_base_lng,rider_service_radius_km,rider_service_area_verified,rider_approval_status')
+      .eq('id',req.user.id).single();
+    if(error)throw error;
+    res.json({service_area:data});
+  }catch(err){next(err);}
+}
+export async function updateRiderServiceArea(req,res,next){
+  try{
+    const {normalizeNigerianState}=await import('../utils/nigeriaStates.js');
+    const state=normalizeNigerianState(req.body.state);
+    if(!state)return res.status(400).json({error:'Select a valid Nigerian state.'});
+    const {data,error}=await supabaseAdmin.from('profiles').update({
+      rider_operating_state:state,rider_base_lat:req.body.lat,rider_base_lng:req.body.lng,
+      rider_service_radius_km:req.body.radius_km,rider_service_area_verified:false,
+    }).eq('id',req.user.id).eq('role','delivery_agent')
+      .select('rider_operating_state,rider_base_lat,rider_base_lng,rider_service_radius_km,rider_service_area_verified,rider_approval_status').single();
+    if(error)throw error;
+    res.json({message:'Operating area submitted. An administrator must verify it before deliveries become available.',service_area:data});
+  }catch(err){next(err);}
 }
