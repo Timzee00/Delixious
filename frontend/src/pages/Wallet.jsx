@@ -127,7 +127,6 @@ export default function Wallet() {
   const wallet = useMemo(() => overview?.wallets?.find(w => w.id === activeId), [overview, activeId]);
   const verification = overview?.verification?.status || 'unverified';
   const verified = verification === 'verified';
-  const canFund = Boolean(overview?.capabilities?.funding);
   const canWithdraw = Boolean(overview?.capabilities?.withdrawals) && verified;
 
   if (loading) {
