@@ -9,7 +9,8 @@ import {
   listQuerySchema,
   broadcastSchema,
   deliveryZoneSchema,
-  interstateDeliverySchema,\n  financialJournalsQuerySchema,
+  interstateDeliverySchema,
+  financialJournalsQuerySchema,
 } from '../schemas/admin.schema.js';
 import {
   getStats,
@@ -23,7 +24,9 @@ import {
   sendBroadcast,
   listDeliveryZones,
   saveDeliveryZone,
-  setInterstateDelivery,\n  getFinancialSummary,\n  listFinancialJournals,
+  setInterstateDelivery,
+  getFinancialSummary,
+  listFinancialJournals,
 } from '../controllers/admin.controller.js';
 
 const router = Router();
@@ -32,7 +35,9 @@ const router = Router();
 router.use(requireAuth, requireRole('admin'));
 
 router.get('/stats', getStats);
-router.get('/finance/summary',getFinancialSummary);\nrouter.get('/finance/journals',validate({query:financialJournalsQuerySchema}),listFinancialJournals);\nrouter.get('/delivery-zones',listDeliveryZones);
+router.get('/finance/summary',getFinancialSummary);
+router.get('/finance/journals',validate({query:financialJournalsQuerySchema}),listFinancialJournals);
+router.get('/delivery-zones',listDeliveryZones);
 router.put('/delivery-zones/:state',validate({body:deliveryZoneSchema}),saveDeliveryZone);
 router.patch('/delivery-settings/interstate',validate({body:interstateDeliverySchema}),setInterstateDelivery);
 
