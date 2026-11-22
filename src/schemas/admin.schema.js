@@ -36,3 +36,9 @@ export const deliveryZoneSchema = z.object({
   is_active:z.boolean(),
 });
 export const interstateDeliverySchema = z.object({enabled:z.boolean()});
+
+export const financialJournalsQuerySchema = z.object({
+  limit: z.coerce.number().int().positive().max(50).optional().default(25),
+  cursor: z.string().max(300).optional(),
+  source_type: z.string().trim().min(2).max(80).optional(),
+});
