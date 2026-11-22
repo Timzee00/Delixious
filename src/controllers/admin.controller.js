@@ -1,4 +1,6 @@
 import { supabaseAdmin } from '../config/supabase.js';
+import { verifyTransaction } from '../utils/paystack.js';
+import { handleSuccessfulPayment } from './payments.controller.js';
 
 export async function getStats(req, res, next) {
   try {
@@ -382,5 +384,58 @@ export async function getFinancialHealth(req,res,next) {
     if(error)throw error;
     res.set('Cache-Control','private, no-store');
     res.json({health:data});
+  } catch(err) { next(err); }
+}
+
+
+export async function reconcilePendingPayments(req,res,next) {
+  try {
+    const cutoff=new Date(Date.now()-5*60*1000).toISOString();
+    const {data:payments,error}=await supabaseAdmin.from('payments')
+      .select('id,reference,checkout_group_id,status,created_at')
+      .eq('payment_environment','live')
+      .in('status',['pending','processing'])
+      .lt('created_at',cutoff)
+      .order('created_at',{ascending:true})
+      .limit(10);
+    if(error)throw error;
+
+    const results={checked:0,finalized:0,failed:0,still_pending:0,needs_review:0};
+    for(const payment of payments||[]) {
+      results.checked+=1;
+      try {
+        const verification=await verifyTransaction(payment.reference);
+        if(!verification?.status||verification.data?.reference!==payment.reference) {
+          results.needs_review+=1;
+          continue;
+        }
+        if(verification.data.status==='success') {
+          await handleSuccessfulPayment(verification.data,{alreadyVerified:true});
+          const {data:current,error:currentError}=await supabaseAdmin.from('payments')
+            .select('status').eq('id',payment.id).maybeSingle();
+          if(currentError)throw currentError;
+          if(current?.status==='success')results.finalized+=1;
+          else results.needs_review+=1;
+        } else if(verification.data.status==='failed') {
+          const {error:updateError}=await supabaseAdmin.from('payments')
+            .update({status:'failed',raw_response:verification.data,processing_started_at:null,updated_at:new Date().toISOString()})
+            .eq('id',payment.id).in('status',['pending','processing']);
+          if(updateError)throw updateError;
+          await supabaseAdmin.from('orders').update({payment_status:'failed'})
+            .eq('payment_reference',payment.reference).eq('payment_status','pending');
+          results.failed+=1;
+        } else {
+          results.still_pending+=1;
+        }
+      } catch(itemError) {
+        results.needs_review+=1;
+        console.error('Manual payment reconciliation failed', {
+          paymentId:payment.id,code:itemError.code||'RECONCILIATION_ERROR',
+          message:String(itemError.message||'Unknown error').slice(0,300),
+        });
+      }
+    }
+    res.set('Cache-Control','private, no-store');
+    res.json({message:'Reconciliation completed for the oldest eligible live payments.',results});
   } catch(err) { next(err); }
 }
