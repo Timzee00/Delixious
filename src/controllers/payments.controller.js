@@ -7,6 +7,7 @@ import { removePurchasedCartLines } from '../utils/paidCartCleanup.js';
 import { beginProviderEvent, finishProviderEvent } from '../utils/providerEventInbox.js';
 import { buildOrderPaymentJournal } from '../utils/orderPaymentJournal.js';
 import { postFinancialJournal } from '../services/financialLedger.js';
+import { buildRiderSettlementJournal } from '../utils/riderWalletJournal.js';
 
 async function handleSuccessfulPayment(data, { retryBusy = false } = {}) {
   const reference = data.reference;
@@ -190,18 +191,68 @@ async function handleRiderTransferEvent(event, data) {
   if (!order) throw new Error('Unknown Delixious rider payout reference.');
   assertMatchingRiderTransfer(data, order);
 
-  const isReversal = event === 'transfer.reversed';
-  const newStatus = event === 'transfer.success' ? 'paid' : 'failed';
-  let update = supabaseAdmin.from('orders')
-    .update({ rider_payout_status: newStatus })
+  const { data: tracking, error: trackingError } = await supabaseAdmin
+    .from('delivery_tracking')
+    .select('delivery_agent_id')
+    .eq('order_id', order.id)
+    .maybeSingle();
+  if (trackingError) throw trackingError;
+  if (!tracking?.delivery_agent_id) throw new Error('Rider payout has no assigned rider.');
+
+  const { data: riderWallet, error: walletError } = await supabaseAdmin
+    .from('wallet_accounts')
+    .select('id')
+    .eq('owner_user_id', tracking.delivery_agent_id)
+    .eq('kind', 'rider')
+    .maybeSingle();
+  if (walletError) throw walletError;
+  if (!riderWallet) throw new Error('Rider payout wallet is missing.');
+
+  const amountKobo = Math.round(Number(order.rider_payout_amount) * 100);
+  if (!Number.isSafeInteger(amountKobo) || amountKobo <= 0) {
+    throw new Error('Rider payout amount is invalid.');
+  }
+
+  if (event === 'transfer.success' || event === 'transfer.reversed') {
+    // A reversal must first ensure the original successful payout is journaled.
+    // Both entries are idempotent, so out-of-order provider events are safe.
+    await postFinancialJournal(buildRiderSettlementJournal({
+      reference: data.reference,
+      amountKobo,
+      riderWalletAccountId: riderWallet.id,
+    }));
+    if (event === 'transfer.reversed') {
+      await postFinancialJournal(buildRiderSettlementJournal({
+        reference: data.reference,
+        amountKobo,
+        riderWalletAccountId: riderWallet.id,
+        reversed: true,
+      }));
+    }
+  }
+
+  const newStatus = event === 'transfer.success' ? 'paid' : event === 'transfer.reversed' ? 'reversed' : 'failed';
+  const now = new Date().toISOString();
+  const { error: payoutError } = await supabaseAdmin.from('financial_payouts')
+    .update({
+      status: newStatus,
+      paid_at: event === 'transfer.success' ? now : null,
+      provider_transfer_code: data.transfer_code || null,
+      last_error_code: event === 'transfer.failed' ? 'PAYSTACK_TRANSFER_FAILED' : null,
+      last_error_message: event === 'transfer.failed' ? String(data.reason || 'Paystack transfer failed').slice(0, 500) : null,
+      updated_at: now,
+    })
+    .eq('provider_reference', data.reference)
+    .in('status', ['processing','failed','paid']);
+  if (payoutError) throw payoutError;
+
+  const orderStatus = event === 'transfer.success' ? 'paid' : 'failed';
+  const { error: orderUpdateError } = await supabaseAdmin.from('orders')
+    .update({ rider_payout_status: orderStatus })
     .eq('id', order.id)
-    .eq('rider_payout_reference', data.reference);
-  // Paystack can reverse a transfer after an earlier success notification.
-  update = isReversal
-    ? update.in('rider_payout_status', ['processing', 'paid'])
-    : update.eq('rider_payout_status', 'processing');
-  const { error: updateError } = await update;
-  if (updateError) throw updateError;
+    .eq('rider_payout_reference', data.reference)
+    .in('rider_payout_status', ['processing','failed','paid']);
+  if (orderUpdateError) throw orderUpdateError;
 }
 
 export async function paystackWebhook(req, res, next) {
