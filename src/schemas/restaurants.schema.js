@@ -13,6 +13,7 @@ export const createRestaurantSchema = z.object({
   cuisine_type: z.string().trim().max(60).optional(),
   business_types: businessTypesSchema.optional().default(['restaurant']),
   address: z.string().trim().min(1, 'address is required.').max(300),
+  state: z.string().trim().min(2).max(40).optional(),
   lat: z.coerce.number().finite().min(-90).max(90).optional(),
   lng: z.coerce.number().finite().min(-180).max(180).optional(),
   logo_url: z.string().url().optional().or(z.literal('')),
