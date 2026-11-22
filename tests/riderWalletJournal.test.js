@@ -15,12 +15,12 @@ describe('rider wallet accounting', () => {
   it('debits rider available earnings only after a successful transfer', () => {
     const journal = buildRiderSettlementJournal({ reference: 'rider_payout_order-123', amountKobo: 100000, riderWalletAccountId: wallet });
     expect(journal.lines[0].side).toBe('debit');
-    expect(journal.lines[1]).toEqual({ accountCode: 'SYS:BANK_SETTLEMENT', side: 'credit', amountKobo: 100000 });
+    expect(journal.lines[1]).toEqual({ accountCode: 'SYS:PAYSTACK_CLEARING', side: 'credit', amountKobo: 100000 });
   });
 
   it('restores rider available earnings after a transfer reversal', () => {
     const journal = buildRiderSettlementJournal({ reference: 'rider_payout_order-123', amountKobo: 100000, riderWalletAccountId: wallet, reversed: true });
-    expect(journal.lines[0]).toEqual({ accountCode: 'SYS:BANK_SETTLEMENT', side: 'debit', amountKobo: 100000 });
+    expect(journal.lines[0]).toEqual({ accountCode: 'SYS:PAYSTACK_CLEARING', side: 'debit', amountKobo: 100000 });
     expect(journal.lines[1].side).toBe('credit');
   });
 
