@@ -1,5 +1,7 @@
 import { supabaseAdmin } from '../config/supabase.js';
 import { initiateTransfer } from '../utils/paystack.js';
+import { buildRiderEarningJournal } from '../utils/riderWalletJournal.js';
+import { postFinancialJournal } from '../services/financialLedger.js';
 
 const AGENT_TRANSITIONS = {
   assigned: ['picked_up'],
@@ -55,17 +57,58 @@ async function payoutRider(order) {
     return;
   }
 
+  const { data: riderWallet, error: walletError } = await supabaseAdmin
+    .from('wallet_accounts')
+    .select('id')
+    .eq('owner_user_id', tracking.delivery_agent_id)
+    .eq('kind', 'rider')
+    .maybeSingle();
+  if (walletError || !riderWallet) {
+    await supabaseAdmin.from('orders').update({ rider_payout_status: 'failed' }).eq('id', order.id).eq('rider_payout_status', 'processing');
+    if (walletError) console.error('Rider wallet lookup failed', { orderId: order.id, message: walletError.message });
+    return;
+  }
+
+  const amountKobo = Math.round(Number(order.rider_payout_amount) * 100);
   const reference = `rider_payout_${order.id}`;
-  // Store the reference BEFORE contacting Paystack so an early webhook can
-  // find the payout. Keep the status processing until transfer.success.
+  // Move the earned delivery amount from the unassigned rider control account
+  // into this rider's available subledger before attempting the bank transfer.
+  try {
+    await postFinancialJournal(buildRiderEarningJournal({
+      orderId: order.id,
+      amountKobo,
+      riderWalletAccountId: riderWallet.id,
+    }));
+  } catch (ledgerError) {
+    await supabaseAdmin.from('orders').update({ rider_payout_status: 'failed' }).eq('id', order.id).eq('rider_payout_status', 'processing');
+    console.error('Rider earning could not be posted', { orderId: order.id, message: ledgerError.message });
+    return;
+  }
+
+  // Store the reference and payout queue row BEFORE contacting Paystack so an
+  // early webhook can find the payout and duplicate calls cannot pay twice.
   const { error: referenceError } = await supabaseAdmin.from('orders')
     .update({ rider_payout_reference: reference })
     .eq('id', order.id)
     .eq('rider_payout_status', 'processing');
   if (referenceError) {
-    // Delivery status is already persisted. Keep this as a recoverable
-    // payout incident instead of telling the rider delivery failed.
     console.error('Unable to link rider transfer reference', { orderId: order.id, message: referenceError.message });
+    return;
+  }
+
+  const { error: payoutInsertError } = await supabaseAdmin.from('financial_payouts').insert({
+    wallet_account_id: riderWallet.id,
+    owner_user_id: tracking.delivery_agent_id,
+    payout_type: 'rider',
+    amount_kobo: amountKobo,
+    beneficiary_token: rider.rider_transfer_recipient_code,
+    idempotency_key: `rider-payout:${order.id}`,
+    provider_reference: reference,
+    status: 'processing',
+    attempt_count: 1,
+  });
+  if (payoutInsertError) {
+    console.error('Rider payout queue record could not be created', { orderId: order.id, message: payoutInsertError.message });
     return;
   }
 
@@ -78,11 +121,23 @@ async function payoutRider(order) {
     });
 
     if (!transfer.status) {
-      // Explicit provider refusal is final for this attempt.
-      await supabaseAdmin.from('orders')
-        .update({ rider_payout_status: 'failed' })
-        .eq('id', order.id)
-        .eq('rider_payout_status', 'processing');
+      // Explicit provider refusal is final for this attempt. The rider's
+      // available ledger balance remains intact for a controlled retry.
+      await Promise.all([
+        supabaseAdmin.from('orders').update({ rider_payout_status: 'failed' })
+          .eq('id', order.id).eq('rider_payout_status', 'processing'),
+        supabaseAdmin.from('financial_payouts').update({
+          status: 'failed',
+          last_error_code: 'PAYSTACK_TRANSFER_REFUSED',
+          last_error_message: String(transfer.message || 'Paystack refused the transfer').slice(0, 500),
+          updated_at: new Date().toISOString(),
+        }).eq('provider_reference', reference).eq('status', 'processing'),
+      ]);
+    } else {
+      await supabaseAdmin.from('financial_payouts').update({
+        provider_transfer_code: transfer.data?.transfer_code || null,
+        updated_at: new Date().toISOString(),
+      }).eq('provider_reference', reference).eq('status', 'processing');
     }
     // A 200 response usually means queued, not settled. A signed
     // transfer.success webhook confirms the paid status.
