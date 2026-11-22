@@ -27,6 +27,7 @@ export default function Checkout() {
   useEffect(() => {
     let active = true;
     setQuote(null);
+    setQuoteLoading(false);
     setQuoteError('');
     if (!address.trim() || !state || lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) return undefined;
     const timer = window.setTimeout(async () => {
@@ -70,8 +71,8 @@ export default function Checkout() {
       try {
         const location = await reverseGeocode(latitude, longitude);
         if (location?.display_name) setAddress(location.display_name);
-        const detectedState = location?.address?.state || location?.address?.region || '';
-        const matched = STATES.find(value => value.toLowerCase() === detectedState.toLowerCase());
+        const detectedState = (location?.address?.state || location?.address?.region || '').replace(/\\s+State$/i, '').trim();
+        const matched = detectedState.toLowerCase() === 'federal capital territory' ? 'FCT' : STATES.find(value => value.toLowerCase() === detectedState.toLowerCase());
         if (matched) setState(matched);
         else setError('Location captured. Select your delivery state manually to continue.');
       } catch {
@@ -81,6 +82,7 @@ export default function Checkout() {
   }
 
   function updateManualCoordinate(which, value) {
+    if (coords) { setManualLat(String(coords.lat)); setManualLng(String(coords.lng)); }
     setCoords(null);
     if (which === 'lat') setManualLat(value);
     else setManualLng(value);
