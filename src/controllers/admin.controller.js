@@ -18,7 +18,7 @@ export async function listRestaurantsAdmin(req, res, next) {
 
     let query = supabaseAdmin
       .from('restaurants')
-      .select('id, name, cuisine_type, address, approval_status, owner_id, created_at', { count: 'exact' })
+      .select('id,name,cuisine_type,address,state,lat,lng,service_area_verified,approval_status,owner_id,created_at', { count: 'exact' })
       .order('created_at', { ascending: false })
       .order('id', { ascending: true })
       .range(from, to);
@@ -35,9 +35,14 @@ export async function listRestaurantsAdmin(req, res, next) {
 
 export async function setRestaurantApproval(req, res, next) {
   try {
+    if (req.body.status === 'approved') {
+      const { data: current, error: lookupError } = await supabaseAdmin.from('restaurants').select('state,lat,lng').eq('id',req.params.id).single();
+      if (lookupError) throw lookupError;
+      if (!current?.state || current.lat == null || current.lng == null) return res.status(400).json({ error: 'Restaurant must submit its state and map coordinates before service-area verification.' });
+    }
     const { data, error } = await supabaseAdmin
       .from('restaurants')
-      .update({ approval_status: req.body.status })
+      .update({ approval_status: req.body.status, service_area_verified: req.body.status === 'approved' })
       .eq('id', req.params.id)
       .select()
       .single();
@@ -57,7 +62,7 @@ export async function listRidersAdmin(req, res, next) {
 
     const { data, error, count } = await supabaseAdmin
       .from('profiles')
-      .select('id, full_name, email, phone, rider_approval_status, rider_rating_avg, rider_rating_count, created_at', { count: 'exact' })
+      .select('id,full_name,email,phone,rider_approval_status,rider_operating_state,rider_base_lat,rider_base_lng,rider_service_radius_km,rider_service_area_verified,rider_rating_avg,rider_rating_count,created_at', { count: 'exact' })
       .eq('role', 'delivery_agent')
       .order('created_at', { ascending: false })
       .order('id', { ascending: true })
@@ -72,9 +77,18 @@ export async function listRidersAdmin(req, res, next) {
 
 export async function setRiderApproval(req, res, next) {
   try {
+    if (req.body.status === 'approved') {
+      const { data: current, error: lookupError } = await supabaseAdmin.from('profiles')
+        .select('rider_operating_state,rider_base_lat,rider_base_lng,rider_service_radius_km')
+        .eq('id',req.params.id).eq('role','delivery_agent').single();
+      if (lookupError) throw lookupError;
+      if (!current?.rider_operating_state || current.rider_base_lat == null || current.rider_base_lng == null || !current.rider_service_radius_km) {
+        return res.status(400).json({ error: 'Rider must submit an operating state, base coordinates and service radius before verification.' });
+      }
+    }
     const { data, error } = await supabaseAdmin
       .from('profiles')
-      .update({ rider_approval_status: req.body.status })
+      .update({ rider_approval_status: req.body.status, rider_service_area_verified: req.body.status === 'approved' })
       .eq('id', req.params.id)
       .eq('role', 'delivery_agent')
       .select()
@@ -205,4 +219,40 @@ export async function sendBroadcast(req, res, next) {
   } catch (err) {
     next(err);
   }
+}
+
+export async function listDeliveryZones(req,res,next){
+  try {
+    const [{data:zones,error:zoneError},{data:settings,error:settingsError}]=await Promise.all([
+      supabaseAdmin.from('delivery_zones').select('*').order('state',{ascending:true}),
+      supabaseAdmin.from('wallet_settings').select('allow_interstate_delivery').eq('id',1).single(),
+    ]);
+    if(zoneError)throw zoneError;
+    if(settingsError)throw settingsError;
+    res.json({zones:zones||[],allow_interstate_delivery:settings.allow_interstate_delivery===true});
+  } catch(err){next(err);}
+}
+export async function saveDeliveryZone(req,res,next){
+  try {
+    const {normalizeNigerianState}=await import('../utils/nigeriaStates.js');
+    const state=normalizeNigerianState(req.params.state);
+    if(!state)return res.status(400).json({error:'Select a valid Nigerian state.'});
+    const {data,error}=await supabaseAdmin.from('delivery_zones').upsert({
+      state,base_fee_kobo:Math.round(Number(req.body.base_fee_naira)*100),
+      per_km_fee_kobo:Math.round(Number(req.body.per_km_fee_naira)*100),
+      included_distance_km:req.body.included_distance_km,max_distance_km:req.body.max_distance_km,
+      is_active:req.body.is_active,updated_by:req.user.id,updated_at:new Date().toISOString(),
+    },{onConflict:'state'}).select().single();
+    if(error)throw error;
+    res.json({message:'Delivery zone saved.',zone:data});
+  } catch(err){next(err);}
+}
+export async function setInterstateDelivery(req,res,next){
+  try {
+    const {data,error}=await supabaseAdmin.from('wallet_settings')
+      .update({allow_interstate_delivery:req.body.enabled,updated_by:req.user.id})
+      .eq('id',1).select('allow_interstate_delivery').single();
+    if(error)throw error;
+    res.json({allow_interstate_delivery:data.allow_interstate_delivery});
+  } catch(err){next(err);}
 }
