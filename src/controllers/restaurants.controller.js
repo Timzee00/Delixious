@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { supabaseAdmin } from '../config/supabase.js';
 import { createSubaccount } from '../utils/paystack.js';
 
-const PUBLIC_FIELDS = 'id, slug, name, description, cuisine_type, business_types, address, state, lat, lng, service_area_verified, logo_url, cover_image_url, is_open, rating_avg, rating_count, created_at';
+const PUBLIC_FIELDS = 'id, slug, name, description, cuisine_type, business_types, address, state, lat, lng, service_radius_km, service_area_verified, logo_url, cover_image_url, is_open, rating_avg, rating_count, created_at';
 const MANAGEMENT_FIELDS = `${PUBLIC_FIELDS}, approval_status`;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -107,7 +107,8 @@ export async function updateRestaurant(req, res, next) {
     const updates = { ...req.body };
     const locationChanged = (updates.state !== undefined && updates.state !== req.restaurant.state) ||
       (updates.lat !== undefined && Number(updates.lat) !== Number(req.restaurant.lat)) ||
-      (updates.lng !== undefined && Number(updates.lng) !== Number(req.restaurant.lng));
+      (updates.lng !== undefined && Number(updates.lng) !== Number(req.restaurant.lng)) ||
+      (updates.service_radius_km !== undefined && Number(updates.service_radius_km) !== Number(req.restaurant.service_radius_km));
     if (locationChanged) updates.service_area_verified = false;
     delete updates.slug;
     delete updates.owner_id;
