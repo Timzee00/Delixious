@@ -12,7 +12,7 @@ const CAPABILITIES = Object.freeze({
 async function loadWalletSettings() {
   const { data, error } = await supabaseAdmin
     .from('wallet_settings')
-    .select('restaurant_commission_bps,rider_commission_bps,restaurant_delivery_fee_kobo,updated_at')
+    .select('restaurant_commission_bps,updated_at')
     .eq('id', 1)
     .single();
   if (error) throw error;
@@ -23,7 +23,7 @@ export async function walletOverview(req, res, next) {
   try {
     const [walletResult, identityResult, settings] = await Promise.all([
       supabaseAdmin.from('wallet_accounts')
-        .select('id,kind,restaurant_id,currency,balance_kobo,pending_kobo,held_kobo,status,restaurants(name)')
+        .select('id,kind,restaurant_id,currency,status,created_at,restaurants(name)')
         .eq('owner_user_id', req.user.id)
         .order('created_at', { ascending: true }),
       supabaseAdmin.from('wallet_verifications')
@@ -35,12 +35,34 @@ export async function walletOverview(req, res, next) {
     if (walletResult.error) throw walletResult.error;
     if (identityResult.error) throw identityResult.error;
 
+    const walletIds = (walletResult.data || []).map(wallet => wallet.id);
+    let balanceRows = [];
+    if (walletIds.length) {
+      const { data, error } = await supabaseAdmin
+        .from('wallet_account_ledger_balances')
+        .select('wallet_account_id,wallet_bucket,balance_kobo')
+        .in('wallet_account_id', walletIds);
+      if (error) throw error;
+      balanceRows = data || [];
+    }
+    const wallets = (walletResult.data || []).map(wallet => {
+      const balances = balanceRows.filter(row => row.wallet_account_id === wallet.id);
+      const amount = bucket => Number(balances.find(row => row.wallet_bucket === bucket)?.balance_kobo || 0);
+      return {
+        ...wallet,
+        balance_kobo: amount('available'),
+        pending_kobo: amount('pending'),
+        held_kobo: amount('held'),
+      };
+    });
+
+    res.set('Cache-Control', 'private, no-store');
     res.json({
-      wallets: walletResult.data || [],
+      wallets,
       verification: identityResult.data || { status: 'unverified', verified_at: null },
       settings,
       capabilities: CAPABILITIES,
-      message: 'Wallet balances are not live until a regulated wallet provider is connected.',
+      message: 'Balances are calculated from the append-only financial ledger. Funding, wallet checkout and withdrawals remain disabled until the regulated settlement integration is approved.',
     });
   } catch (err) { next(err); }
 }
@@ -60,13 +82,26 @@ export async function walletActivity(req, res, next) {
     if (accountError) throw accountError;
     if (!account) return res.status(404).json({ error: 'Wallet not found.' });
 
-    const { data, error, count } = await supabaseAdmin.from('wallet_entries')
-      .select('id,delta_kobo,balance_after_kobo,created_at,wallet_transactions(kind,description,provider_reference)', { count: 'exact' })
-      .eq('account_id', account.id)
+    const { data, error, count } = await supabaseAdmin.from('financial_journal_lines')
+      .select('id,side,amount_kobo,created_at,financial_accounts!inner(wallet_account_id,wallet_bucket),financial_journals!inner(id,source_type,source_id,description,idempotency_key)', { count: 'exact' })
+      .eq('financial_accounts.wallet_account_id', account.id)
       .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
       .range((page - 1) * limit, page * limit - 1);
     if (error) throw error;
-    res.json({ wallet_id: account.id, activity: data || [], total: count || 0, page, limit });
+    const activity = (data || []).map(entry => ({
+      id: entry.id,
+      delta_kobo: entry.side === 'credit' ? Number(entry.amount_kobo) : -Number(entry.amount_kobo),
+      created_at: entry.created_at,
+      wallet_bucket: entry.financial_accounts?.wallet_bucket,
+      wallet_transactions: {
+        kind: entry.financial_journals?.source_type,
+        description: entry.financial_journals?.description,
+        provider_reference: entry.financial_journals?.source_id,
+      },
+    }));
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ wallet_id: account.id, activity, total: count || 0, page, limit });
   } catch (err) { next(err); }
 }
 
@@ -109,12 +144,10 @@ export async function requestWalletWithdrawal(req, res, next) {
 
 export async function adminWalletSettings(req, res, next) {
   try {
-    const { restaurant_commission_bps, rider_commission_bps, restaurant_delivery_fee_kobo } = req.body;
+    const { restaurant_commission_bps } = req.body;
     const { data, error } = await supabaseAdmin.from('wallet_settings')
       .update({
         restaurant_commission_bps,
-        rider_commission_bps,
-        restaurant_delivery_fee_kobo,
         updated_at: new Date().toISOString(),
         updated_by: req.user.id,
       })
