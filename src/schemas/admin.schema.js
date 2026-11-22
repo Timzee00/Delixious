@@ -27,3 +27,12 @@ export const broadcastSchema = z.object({
   message: z.string().trim().min(1, 'message is required.'),
   role: z.enum(['customer', 'restaurant_owner', 'delivery_agent']).optional(),
 });
+
+export const deliveryZoneSchema = z.object({
+  base_fee_naira:z.coerce.number().finite().min(0).max(20000),
+  per_km_fee_naira:z.coerce.number().finite().min(0).max(5000),
+  included_distance_km:z.coerce.number().finite().min(0).max(100),
+  max_distance_km:z.coerce.number().finite().min(1).max(300),
+  is_active:z.boolean(),
+});
+export const interstateDeliverySchema = z.object({enabled:z.boolean()});
