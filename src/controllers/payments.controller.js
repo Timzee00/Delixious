@@ -76,6 +76,7 @@ async function handleSuccessfulPayment(data, { retryBusy = false } = {}) {
   }
 
   let newlyPaidOrders = [];
+  let ledgerOrdersForNotifications = [];
   try {
     const { data: orders, error: ordersError } = await supabaseAdmin
       .from('orders')
@@ -108,6 +109,7 @@ async function handleSuccessfulPayment(data, { retryBusy = false } = {}) {
       .select('id,user_id,restaurant_id,total_amount,restaurant_net_amount,rider_payout_amount,platform_commission')
       .eq('checkout_group_id', claimedPayment.checkout_group_id);
     if (ledgerOrdersError) throw ledgerOrdersError;
+    ledgerOrdersForNotifications = ledgerOrders || [];
     const restaurantIds = [...new Set((ledgerOrders || []).map(order => order.restaurant_id))];
     const { data: restaurantWallets, error: walletLookupError } = await supabaseAdmin
       .from('wallet_accounts')
@@ -140,7 +142,7 @@ async function handleSuccessfulPayment(data, { retryBusy = false } = {}) {
 
   // Non-financial tasks are best-effort and must not roll back a verified
   // payment or cause the webhook to claim the customer was not charged.
-  for (const order of ledgerOrders) {
+  for (const order of ledgerOrdersForNotifications) {
     try {
       await removePurchasedCartLines(supabaseAdmin, order);
     } catch (err) {
