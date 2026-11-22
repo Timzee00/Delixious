@@ -42,3 +42,15 @@ export const financialJournalsQuerySchema = z.object({
   cursor: z.string().max(300).optional(),
   source_type: z.string().trim().min(2).max(80).optional(),
 });
+
+export const financialPayoutsQuerySchema = z.object({
+  limit: z.coerce.number().int().positive().max(50).optional().default(25),
+  cursor: z.string().max(300).optional(),
+  status: z.enum(['queued','on_hold','approved','processing','paid','failed','reversed','cancelled']).optional(),
+});
+
+export const providerEventsQuerySchema = z.object({
+  limit: z.coerce.number().int().positive().max(50).optional().default(25),
+  cursor: z.string().max(300).optional(),
+  state: z.enum(['received','processing','processed','failed','ignored']).optional(),
+});
