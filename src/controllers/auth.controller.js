@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { supabaseAdmin, supabaseAnon } from '../config/supabase.js';
 import { createSubaccount, createTransferRecipient } from '../utils/paystack.js';
 import { setAuthCookies, clearAuthCookies, ensureCsrfCookie } from '../utils/authCookies.js';
@@ -271,6 +272,21 @@ export async function requestPasswordReset(req, res, next) {
   } catch (err) { next(err); }
 }
 
+function recoveryCookieValue(userId, expiresAt) {
+  const payload = `${userId}:${expiresAt}`;
+  const signature = crypto.createHmac('sha256', process.env.SUPABASE_SERVICE_ROLE_KEY).update(payload).digest('hex');
+  return `${payload}:${signature}`;
+}
+
+function isRecoverySession(accessToken) {
+  try {
+    const payload = JSON.parse(Buffer.from(accessToken.split('.')[1], 'base64url').toString('utf8'));
+    return Array.isArray(payload.amr) && payload.amr.some(method => method?.method === 'recovery');
+  } catch {
+    return false;
+  }
+}
+
 export async function createPasswordRecoverySession(req, res, next) {
   try {
     let data, error;
@@ -285,10 +301,18 @@ export async function createPasswordRecoverySession(req, res, next) {
         refresh_token: req.body.refresh_token,
       }));
     }
-    if (error || !data?.session || !data?.user) {
+    if (error || !data?.session || !data?.user || !isRecoverySession(data.session.access_token)) {
       return res.status(400).json({ error: 'This password reset link is invalid or has expired. Request a new one.' });
     }
     const csrfToken = setAuthCookies(res, data.session);
+    const expiresAt = Date.now() + 10 * 60 * 1000;
+    res.cookie('password_recovery', recoveryCookieValue(data.user.id, expiresAt), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/api/auth/password',
+      maxAge: 10 * 60 * 1000,
+    });
     res.json({ user: { id: data.user.id, email: data.user.email }, csrfToken });
   } catch (err) { next(err); }
 }
@@ -299,8 +323,25 @@ export async function updatePassword(req, res, next) {
     if (password.length < 8 || password.length > 128) {
       return res.status(400).json({ error: 'Password must be between 8 and 128 characters.' });
     }
+    const parts = String(req.cookies?.password_recovery || '').split(':');
+    const [userId, expiresAtText, signature] = parts;
+    const expiresAt = Number(expiresAtText);
+    const payload = `${userId}:${expiresAtText}`;
+    const expected = crypto.createHmac('sha256', process.env.SUPABASE_SERVICE_ROLE_KEY).update(payload).digest('hex');
+    const suppliedBuffer = /^[a-f0-9]{64}$/i.test(signature || '') ? Buffer.from(signature, 'hex') : Buffer.alloc(0);
+    const expectedBuffer = Buffer.from(expected, 'hex');
+    if (userId !== req.user.id || !Number.isFinite(expiresAt) || expiresAt < Date.now() ||
+        suppliedBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(suppliedBuffer, expectedBuffer)) {
+      return res.status(403).json({ error: 'Your password reset session has expired. Request a fresh reset link.' });
+    }
     const { error } = await supabaseAdmin.auth.admin.updateUserById(req.user.id, { password });
     if (error) throw error;
+    res.clearCookie('password_recovery', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/api/auth/password',
+    });
     res.json({ message: 'Password updated successfully.' });
   } catch (err) { next(err); }
 }
