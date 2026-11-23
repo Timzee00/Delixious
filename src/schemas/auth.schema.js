@@ -20,3 +20,16 @@ export const updateProfileSchema = z.object({
   phone: z.string().trim().optional(),
   avatar_url: z.string().url().optional().or(z.literal('')),
 });
+
+export const passwordResetRequestSchema = z.object({
+  email: z.string().trim().email('Enter a valid email address.').max(254),
+});
+
+export const recoverySessionSchema = z.union([
+  z.object({ token_hash: z.string().min(20).max(2048) }),
+  z.object({ access_token: z.string().min(20).max(4096), refresh_token: z.string().min(20).max(4096) }),
+]);
+
+export const passwordUpdateSchema = z.object({
+  password: z.string().min(8).max(128),
+});
