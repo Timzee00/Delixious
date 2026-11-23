@@ -49,8 +49,9 @@ async function buildCheckoutQuote(userId, input) {
       .eq('id',cart.restaurant_id).single();
     if(restaurantError||!restaurant)throw new Error('Restaurant not found.');
     if(!restaurant.is_open)throw new Error(`${restaurant.name} is currently closed.`);
-    if(restaurant.approval_status!=='approved'||!restaurant.service_area_verified)throw new Error(`${restaurant.name} is not approved and verified for delivery yet.`);
-    if(!restaurant.paystack_subaccount_code)throw new Error(`${restaurant.name} has not completed payout setup and cannot accept paid orders yet.`);
+    if(restaurant.approval_status!=='approved')throw new Error(`${restaurant.name} is still awaiting marketplace approval and cannot accept orders yet.`);
+    if(!restaurant.service_area_verified)throw new Error(`${restaurant.name} has not completed delivery-area verification. The restaurant must add its operating state, map location and delivery radius, then request verification.`);
+    if(!restaurant.paystack_subaccount_code)throw new Error(`${restaurant.name} has not connected a verified Paystack settlement account and cannot accept paid orders yet.`);
     const area=assertRestaurantDeliveryArea({restaurant,destinationState:state,deliveryLat:lat,deliveryLng:lng,zone,allowInterstate:settings.allow_interstate_delivery===true});
     const itemRows=[];
     let restaurantFoodKobo=0;
