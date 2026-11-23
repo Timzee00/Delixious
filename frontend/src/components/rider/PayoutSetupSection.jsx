@@ -32,6 +32,7 @@ export default function PayoutSetupSection() {
     setForm(current => ({
       ...current,
       [name]: name === 'account_number' ? value.replace(/\D/g, '').slice(0, 10) : value,
+      ...(name === 'bank_code' ? { bank_name: banks.find(bank => bank.code === value)?.name || '' } : {}),
     }));
   }
 
