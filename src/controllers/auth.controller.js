@@ -254,3 +254,53 @@ export async function updateProfile(req, res, next) {
     next(err);
   }
 }
+
+
+export async function requestPasswordReset(req, res, next) {
+  try {
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const redirectTo = `${process.env.FRONTEND_URL}/reset-password`;
+    const { error } = await supabaseAnon.auth.resetPasswordForEmail(email, { redirectTo });
+    if (error) {
+      logger.warn('Password reset request could not be sent', { message: error.message });
+      return res.status(503).json({ error: 'Password recovery is temporarily unavailable. Please try again shortly.' });
+    }
+    // Always return the same success response whether or not the email belongs
+    // to an account. Supabase also applies its own email throttling.
+    res.json({ message: 'If an account exists for that email, a reset link has been sent.' });
+  } catch (err) { next(err); }
+}
+
+export async function createPasswordRecoverySession(req, res, next) {
+  try {
+    let data, error;
+    if (req.body.token_hash) {
+      ({ data, error } = await supabaseAnon.auth.verifyOtp({
+        token_hash: req.body.token_hash,
+        type: 'recovery',
+      }));
+    } else {
+      ({ data, error } = await supabaseAnon.auth.setSession({
+        access_token: req.body.access_token,
+        refresh_token: req.body.refresh_token,
+      }));
+    }
+    if (error || !data?.session || !data?.user) {
+      return res.status(400).json({ error: 'This password reset link is invalid or has expired. Request a new one.' });
+    }
+    const csrfToken = setAuthCookies(res, data.session);
+    res.json({ user: { id: data.user.id, email: data.user.email }, csrfToken });
+  } catch (err) { next(err); }
+}
+
+export async function updatePassword(req, res, next) {
+  try {
+    const password = String(req.body.password || '');
+    if (password.length < 8 || password.length > 128) {
+      return res.status(400).json({ error: 'Password must be between 8 and 128 characters.' });
+    }
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(req.user.id, { password });
+    if (error) throw error;
+    res.json({ message: 'Password updated successfully.' });
+  } catch (err) { next(err); }
+}
