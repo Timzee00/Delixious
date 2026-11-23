@@ -7,6 +7,8 @@ const PAGE_SIZE = 20;
 export default function RidersApprovalSection() {
   const [riders, setRiders] = useState([]);
   const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
@@ -16,7 +18,7 @@ export default function RidersApprovalSection() {
     let cancelled = false;
     setLoading(true);
     setError('');
-    adminApi.listRiders({ page, limit: PAGE_SIZE })
+    adminApi.listRiders({ page, limit: PAGE_SIZE, q: search || undefined })
       .then(({ data }) => {
         if (cancelled) return;
         setRiders(data.riders || []);
@@ -25,7 +27,7 @@ export default function RidersApprovalSection() {
       .catch(err => { if (!cancelled) setError(err.response?.data?.error || 'Could not load riders.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [page]);
+  }, [page, search]);
 
   async function setApproval(id, status) {
     setBusyId(id);
@@ -42,7 +44,7 @@ export default function RidersApprovalSection() {
 
   return (
     <section>
-      <div><h2 className="font-display text-xl font-bold text-ink">Rider applications</h2><p className="mt-1 text-sm text-ink-soft">Review approved and pending delivery partners.</p></div>
+      <div className="flex flex-wrap items-end justify-between gap-3"><div><h2 className="font-display text-xl font-bold text-ink">Rider applications</h2><p className="mt-1 text-sm text-ink-soft">Review approved and pending delivery partners.</p></div><form onSubmit={event => { event.preventDefault(); setPage(1); setSearch(searchInput.trim()); }} className="flex min-w-[min(100%,300px)] flex-1 gap-2"><input value={searchInput} onChange={event => setSearchInput(event.target.value)} maxLength={100} placeholder="Search rider, contact or state" aria-label="Search riders" className="min-h-10 min-w-0 flex-1 rounded-lg border border-hairline bg-paper px-3 text-sm text-ink"/><button type="submit" className="min-h-10 rounded-lg bg-ink px-3 text-sm font-semibold text-white">Search</button></form></div>
       {error && <p role="alert" className="mt-4 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
       {loading ? <p className="mt-6 text-sm text-ink-soft">Loading riders…</p> : !riders.length ? (
         <div className="mt-6 rounded-xl border border-hairline bg-paper p-8 text-center text-sm text-ink-soft">No riders found.</div>
