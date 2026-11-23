@@ -9,6 +9,8 @@ const FILTERS = ['pending', 'approved', 'rejected', ''];
 export default function RestaurantsApprovalSection() {
   const [restaurants, setRestaurants] = useState([]);
   const [filter, setFilter] = useState('pending');
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -19,7 +21,7 @@ export default function RestaurantsApprovalSection() {
     let cancelled = false;
     setLoading(true);
     setError('');
-    adminApi.listRestaurants({ status: filter || undefined, page, limit: PAGE_SIZE })
+    adminApi.listRestaurants({ status: filter || undefined, q: search || undefined, page, limit: PAGE_SIZE })
       .then(({ data }) => {
         if (cancelled) return;
         setRestaurants(data.restaurants || []);
@@ -28,7 +30,7 @@ export default function RestaurantsApprovalSection() {
       .catch(err => { if (!cancelled) setError(err.response?.data?.error || 'Could not load restaurants.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [filter, page]);
+  }, [filter, page, search]);
 
   async function setApproval(id, status) {
     setBusyId(id);
@@ -52,6 +54,10 @@ export default function RestaurantsApprovalSection() {
     <section>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div><h2 className="font-display text-xl font-bold text-ink">Food business applications</h2><p className="mt-1 text-sm text-ink-soft">Review restaurants, bakeries, dessert shops and other food sellers.</p></div>
+        <form onSubmit={event => { event.preventDefault(); setPage(1); setSearch(searchInput.trim()); }} className="flex min-w-[min(100%,300px)] flex-1 gap-2">
+          <input value={searchInput} onChange={event => setSearchInput(event.target.value)} maxLength={100} placeholder="Search business, address or state" aria-label="Search food businesses" className="min-h-10 min-w-0 flex-1 rounded-lg border border-hairline bg-paper px-3 text-sm text-ink"/>
+          <button type="submit" className="min-h-10 rounded-lg bg-ink px-3 text-sm font-semibold text-white">Search</button>
+        </form>
         <div className="flex flex-wrap gap-2">
           {FILTERS.map(status => <button key={status || 'all'} type="button" onClick={() => { setFilter(status); setPage(1); }}
             aria-pressed={filter === status}
