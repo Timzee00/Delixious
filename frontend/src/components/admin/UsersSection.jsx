@@ -8,6 +8,8 @@ const PAGE_SIZE = 20;
 export default function UsersSection() {
   const [users, setUsers] = useState([]);
   const [role, setRole] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -18,7 +20,7 @@ export default function UsersSection() {
     let cancelled = false;
     setLoading(true);
     setError('');
-    adminApi.listUsers({ role: role || undefined, page, limit: PAGE_SIZE })
+    adminApi.listUsers({ role: role || undefined, q: search || undefined, page, limit: PAGE_SIZE })
       .then(({ data }) => {
         if (cancelled) return;
         setUsers(data.users || []);
@@ -27,7 +29,7 @@ export default function UsersSection() {
       .catch(err => { if (!cancelled) setError(err.response?.data?.error || 'Could not load users.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [role, page]);
+  }, [role, page, search]);
 
   async function toggleSuspend(id, current) {
     setBusyId(id);
@@ -46,6 +48,10 @@ export default function UsersSection() {
     <section>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div><h2 className="font-display text-xl font-bold text-ink">Marketplace accounts</h2><p className="mt-1 text-sm text-ink-soft">Find and manage accounts by role.</p></div>
+        <form onSubmit={event => { event.preventDefault(); setPage(1); setSearch(searchInput.trim()); }} className="flex min-w-[min(100%,340px)] flex-1 gap-2">
+          <input value={searchInput} onChange={event => setSearchInput(event.target.value)} maxLength={100} placeholder="Search name, email or phone" aria-label="Search marketplace accounts" className="min-h-10 min-w-0 flex-1 rounded-lg border border-hairline bg-paper px-3 text-sm text-ink"/>
+          <button type="submit" className="min-h-10 rounded-lg bg-ink px-4 text-sm font-semibold text-white">Search</button>
+        </form>
         <label className="text-xs font-semibold text-ink-soft">Role
           <select value={role} onChange={e => { setRole(e.target.value); setPage(1); }} className="ml-2 min-h-10 rounded-lg border border-hairline bg-paper px-3 text-sm font-medium text-ink">
             {ROLES.map(r => <option key={r || 'all'} value={r}>{r ? r.replace(/_/g, ' ') : 'All roles'}</option>)}
