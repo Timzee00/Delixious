@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import FormField from '../components/FormField.jsx';
 
 export default function ResetPassword() {
-  const { login } = useAuth();
+  const { refreshProfile } = useAuth();
   const navigate = useNavigate();
   const recoveryStarted = useRef(false);
   const [mode, setMode] = useState('request');
@@ -74,7 +74,7 @@ export default function ResetPassword() {
     setNotice('');
     try {
       await api.put('/auth/password', { password: newPassword });
-      await login(email, newPassword);
+      await refreshProfile();
       navigate('/', { replace: true });
     } catch (err) {
       setError(err.response?.data?.error || 'Could not update your password. Request a fresh reset link and try again.');
