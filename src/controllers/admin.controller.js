@@ -64,7 +64,7 @@ export async function listRidersAdmin(req, res, next) {
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
-    const { data, error, count } = await supabaseAdmin
+    let query = supabaseAdmin
       .from('profiles')
       .select('id,full_name,email,phone,rider_approval_status,rider_operating_state,rider_base_lat,rider_base_lng,rider_service_radius_km,rider_service_area_verified,rider_rating_avg,rider_rating_count,created_at', { count: 'exact' })
       .eq('role', 'delivery_agent')
@@ -74,9 +74,9 @@ export async function listRidersAdmin(req, res, next) {
     const term = String(q || '').trim().replace(/[%,()]/g, ' ').slice(0, 100);
     if (term) query = query.or(`full_name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%,rider_operating_state.ilike.%${term}%`);
 
-    const { data: filteredData, error: filteredError, count: filteredCount } = await query;
-    if (filteredError) return res.status(400).json({ error: filteredError.message });
-    res.json({ riders: filteredData, total: filteredCount, page, limit });
+    const { data, error, count } = await query;
+    if (error) return res.status(400).json({ error: error.message });
+    res.json({ riders: data, total: count, page, limit });
   } catch (err) {
     next(err);
   }
