@@ -46,6 +46,8 @@ function AdminOrdersSection() {
   const [orders, setOrders] = useState([]);
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -55,7 +57,7 @@ function AdminOrdersSection() {
     let cancelled = false;
     setLoading(true);
     setError('');
-    adminApi.listOrders({ page, limit: PAGE_SIZE, ...(status ? { status } : {}) })
+    adminApi.listOrders({ page, limit: PAGE_SIZE, ...(status ? { status } : {}), ...(search ? { q: search } : {}) })
       .then(({ data }) => {
         if (cancelled) return;
         setOrders(data.orders || []);
@@ -64,12 +66,16 @@ function AdminOrdersSection() {
       .catch(err => { if (!cancelled) setError(err.response?.data?.error || 'Could not load orders.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [page, status, retry]);
+  }, [page, status, search, retry]);
 
   return (
     <section className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div><p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-pepper">MARKETPLACE RECORDS</p><h2 className="mt-1 font-display text-2xl font-bold text-ink">Order activity</h2><p className="mt-1 text-sm text-ink-soft">Review orders in bounded pages. Filter by the current order state.</p></div>
+        <form onSubmit={event => { event.preventDefault(); setPage(1); setSearch(searchInput.trim()); }} className="flex min-w-[min(100%,340px)] flex-1 gap-2">
+          <input value={searchInput} onChange={event => setSearchInput(event.target.value)} maxLength={100} placeholder="Search order ID or restaurant" aria-label="Search orders" className="min-h-10 min-w-0 flex-1 rounded-xl border border-hairline bg-paper px-3 text-sm text-ink"/>
+          <button type="submit" className="min-h-10 rounded-xl bg-ink px-4 text-sm font-semibold text-white">Search</button>
+        </form>
         <label className="block text-xs font-semibold text-ink-soft">Status
           <select value={status} onChange={event => { setStatus(event.target.value); setPage(1); }} className="mt-1 min-h-10 rounded-xl border border-hairline bg-paper px-3 text-sm font-medium text-ink">
             {STATUSES.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
