@@ -14,7 +14,7 @@ export async function getStats(req, res, next) {
 
 export async function listRestaurantsAdmin(req, res, next) {
   try {
-    const { status, page, limit } = req.query;
+    const { status, page, limit, q } = req.query;
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
@@ -26,6 +26,8 @@ export async function listRestaurantsAdmin(req, res, next) {
       .range(from, to);
 
     if (status) query = query.eq('approval_status', status);
+    const term = String(q || '').trim().replace(/[%,()]/g, ' ').slice(0, 100);
+    if (term) query = query.or(`name.ilike.%${term}%,address.ilike.%${term}%,state.ilike.%${term}%`);
 
     const { data, error, count } = await query;
     if (error) return res.status(400).json({ error: error.message });
@@ -105,7 +107,7 @@ export async function setRiderApproval(req, res, next) {
 
 export async function listUsersAdmin(req, res, next) {
   try {
-    const { role, page, limit } = req.query;
+    const { role, page, limit, q } = req.query;
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
@@ -117,6 +119,8 @@ export async function listUsersAdmin(req, res, next) {
       .range(from, to);
 
     if (role) query = query.eq('role', role);
+    const term = String(q || '').trim().replace(/[%,()]/g, ' ').slice(0, 100);
+    if (term) query = query.or(`full_name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%`);
 
     const { data, error, count } = await query;
     if (error) return res.status(400).json({ error: error.message });
@@ -144,7 +148,7 @@ export async function setUserSuspension(req, res, next) {
 
 export async function listOrdersAdmin(req, res, next) {
   try {
-    const { page, limit, status } = req.query;
+    const { page, limit, status, q } = req.query;
     const from = (page - 1) * limit;
     let query = supabaseAdmin
       .from('orders')
@@ -153,6 +157,11 @@ export async function listOrdersAdmin(req, res, next) {
       .order('id', { ascending: true })
       .range(from, from + limit - 1);
     if (status) query = query.eq('status', status);
+    const term = String(q || '').trim().replace(/[%,()]/g, ' ').slice(0, 100);
+    if (term) {
+      if (/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(term)) query = query.eq('id', term);
+      else query = query.ilike('restaurants.name', `%${term}%`);
+    }
     const { data, error, count } = await query;
 
     if (error) return res.status(400).json({ error: error.message });
