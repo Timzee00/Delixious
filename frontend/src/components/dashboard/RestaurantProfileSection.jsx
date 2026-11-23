@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../lib/api.js';
 import FormField from '../FormField.jsx';
@@ -27,6 +27,8 @@ export default function RestaurantProfileSection({ restaurant, onCreated, onUpda
   });
   const [saving, setSaving] = useState(false);
   const [payoutForm, setPayoutForm] = useState({ bank_name: '', bank_code: '', account_number: '' });
+  const [banks, setBanks] = useState([]);
+  const [banksLoading, setBanksLoading] = useState(true);
   const [payoutSaving, setPayoutSaving] = useState(false);
   const [payoutMessage, setPayoutMessage] = useState('');
   const [payoutError, setPayoutError] = useState('');
@@ -34,6 +36,16 @@ export default function RestaurantProfileSection({ restaurant, onCreated, onUpda
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [copyMessage, setCopyMessage] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    api.get('/payments/banks').then(({ data }) => {
+      if (active) setBanks((data.banks || []).filter(bank => bank.name && bank.code).sort((a, b) => a.name.localeCompare(b.name)));
+    }).catch(err => {
+      if (active) setPayoutError(err.response?.data?.error || 'Bank list could not be loaded. Retry in a moment.');
+    }).finally(() => { if (active) setBanksLoading(false); });
+    return () => { active = false; };
+  }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -135,11 +147,12 @@ export default function RestaurantProfileSection({ restaurant, onCreated, onUpda
             <InlineStatus tone="success" className="mt-4"><span className="inline-flex items-center gap-2 font-semibold"><Icon name="circle-check" size={16}/> Payout account connected</span><span className="mt-1 block text-xs font-normal">The account connection is recorded. Bank details are not displayed here.</span></InlineStatus>
           ) : (
             <form onSubmit={handlePayoutSubmit} className="mt-5 grid gap-4 sm:grid-cols-2">
-              <label className="block text-sm font-medium text-ink">Bank name
-                <input name="bank_name" autoComplete="organization" value={payoutForm.bank_name} onChange={event => setPayoutForm(current => ({ ...current, bank_name: event.target.value }))} required maxLength={80} placeholder="e.g. Access Bank" className="mt-1.5 min-h-11 w-full rounded-xl border border-hairline bg-paper px-3 text-sm text-ink placeholder:text-ink-soft/60 focus:border-pepper focus:outline-none"/>
-              </label>
-              <label className="block text-sm font-medium text-ink">Paystack bank code
-                <input name="bank_code" value={payoutForm.bank_code} onChange={event => setPayoutForm(current => ({ ...current, bank_code: event.target.value }))} required maxLength={20} placeholder="Bank code from Paystack" className="mt-1.5 min-h-11 w-full rounded-xl border border-hairline bg-paper px-3 text-sm text-ink placeholder:text-ink-soft/60 focus:border-pepper focus:outline-none"/>
+              <label className="block text-sm font-medium text-ink sm:col-span-2">Select business bank
+                <select name="bank_code" value={payoutForm.bank_code} onChange={event => { const bank = banks.find(item => item.code === event.target.value); setPayoutForm(current => ({ ...current, bank_code: event.target.value, bank_name: bank?.name || '' })); }} required disabled={banksLoading || !banks.length} className="mt-1.5 min-h-11 w-full rounded-xl border border-hairline bg-paper px-3 text-sm text-ink focus:border-pepper focus:outline-none">
+                  <option value="">{banksLoading ? 'Loading Nigerian banks…' : banks.length ? 'Choose your bank' : 'Bank list unavailable'}</option>
+                  {banks.map(bank => <option key={bank.code} value={bank.code}>{bank.name}</option>)}
+                </select>
+                <span className="mt-1 block text-xs font-normal text-ink-soft">Delixious fills in the Paystack bank code automatically.</span>
               </label>
               <label className="block text-sm font-medium text-ink sm:col-span-2">10-digit account number
                 <input name="account_number" type="text" inputMode="numeric" autoComplete="off" pattern="[0-9]{10}" value={payoutForm.account_number} onChange={event => setPayoutForm(current => ({ ...current, account_number: event.target.value.replace(/\D/g, '').slice(0, 10) }))} required placeholder="Enter business account number" className="mt-1.5 min-h-11 w-full rounded-xl border border-hairline bg-paper px-3 text-sm text-ink placeholder:text-ink-soft/60 focus:border-pepper focus:outline-none"/>
