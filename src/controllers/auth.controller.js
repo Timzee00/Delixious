@@ -281,7 +281,7 @@ function recoveryCookieValue(userId, expiresAt) {
 function isRecoverySession(accessToken) {
   try {
     const payload = JSON.parse(Buffer.from(accessToken.split('.')[1], 'base64url').toString('utf8'));
-    return Array.isArray(payload.amr) && payload.amr.some(method => method?.method === 'recovery');
+    return Array.isArray(payload.amr) && payload.amr.some(method => method === 'recovery' || method?.method === 'recovery');
   } catch {
     return false;
   }
