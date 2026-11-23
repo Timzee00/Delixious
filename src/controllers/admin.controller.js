@@ -60,7 +60,7 @@ export async function setRestaurantApproval(req, res, next) {
 
 export async function listRidersAdmin(req, res, next) {
   try {
-    const { page, limit } = req.query;
+    const { page, limit, q } = req.query;
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
@@ -71,9 +71,12 @@ export async function listRidersAdmin(req, res, next) {
       .order('created_at', { ascending: false })
       .order('id', { ascending: true })
       .range(from, to);
+    const term = String(q || '').trim().replace(/[%,()]/g, ' ').slice(0, 100);
+    if (term) query = query.or(`full_name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%,rider_operating_state.ilike.%${term}%`);
 
-    if (error) return res.status(400).json({ error: error.message });
-    res.json({ riders: data, total: count, page, limit });
+    const { data: filteredData, error: filteredError, count: filteredCount } = await query;
+    if (filteredError) return res.status(400).json({ error: filteredError.message });
+    res.json({ riders: filteredData, total: filteredCount, page, limit });
   } catch (err) {
     next(err);
   }
