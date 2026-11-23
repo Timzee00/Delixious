@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import api from '../../lib/api.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import Icon from '../ui/Icon.jsx';
@@ -8,12 +8,24 @@ import { Button, InlineStatus } from '../ui/Primitives.jsx';
 export default function PayoutSetupSection() {
   const { profile, refreshProfile } = useAuth();
   const [form, setForm] = useState({ bank_name: '', bank_code: '', account_number: '' });
+  const [banks, setBanks] = useState([]);
+  const [banksLoading, setBanksLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
   const connected = Boolean(profile?.rider_payout_account_connected);
   const last4 = profile?.rider_bank_account_last4;
+
+  useEffect(() => {
+    let active = true;
+    api.get('/payments/banks').then(({ data }) => {
+      if (active) setBanks((data.banks || []).filter(bank => bank.name && bank.code).sort((a, b) => a.name.localeCompare(b.name)));
+    }).catch(err => {
+      if (active) setError(err.response?.data?.error || 'Bank list could not be loaded. Retry in a moment.');
+    }).finally(() => { if (active) setBanksLoading(false); });
+    return () => { active = false; };
+  }, []);
 
   function update(event) {
     const { name, value } = event.target;
@@ -71,11 +83,12 @@ export default function PayoutSetupSection() {
             <div><p className="font-display text-base font-bold text-ink">Verified payouts</p><p className="mt-1 text-sm leading-6 text-ink-soft">Paystack checks the bank account before connecting it to your rider profile.</p></div>
           </div>
           <form onSubmit={submit} className="space-y-4 p-4 sm:p-6">
-            <label className="block text-sm font-semibold text-ink">Bank name
-              <input name="bank_name" value={form.bank_name} onChange={update} required maxLength={80} autoComplete="organization" placeholder="e.g. Access Bank" className="mt-1.5 min-h-11 w-full rounded-xl border border-hairline bg-paper px-3 text-sm font-normal text-ink placeholder:text-ink-soft/60 focus:border-pepper focus:outline-none"/>
-            </label>
-            <label className="block text-sm font-semibold text-ink">Paystack bank code
-              <input name="bank_code" value={form.bank_code} onChange={update} required maxLength={20} placeholder="Enter your bank's Paystack code" className="mt-1.5 min-h-11 w-full rounded-xl border border-hairline bg-paper px-3 text-sm font-normal text-ink placeholder:text-ink-soft/60 focus:border-pepper focus:outline-none"/>
+            <label className="block text-sm font-semibold text-ink">Select your bank
+              <select name="bank_code" value={form.bank_code} onChange={update} required disabled={banksLoading || !banks.length} className="mt-1.5 min-h-11 w-full rounded-xl border border-hairline bg-paper px-3 text-sm font-normal text-ink focus:border-pepper focus:outline-none">
+                <option value="">{banksLoading ? 'Loading Nigerian banks…' : banks.length ? 'Choose your bank' : 'Bank list unavailable'}</option>
+                {banks.map(bank => <option key={bank.code} value={bank.code}>{bank.name}</option>)}
+              </select>
+              <span className="mt-1 block text-xs font-normal text-ink-soft">Choose the bank by its name. Delixious supplies the Paystack bank code automatically.</span>
             </label>
             <label className="block text-sm font-semibold text-ink">10-digit account number
               <input name="account_number" inputMode="numeric" autoComplete="off" pattern="[0-9]{10}" maxLength={10} value={form.account_number} onChange={update} required placeholder="0123456789" className="mt-1.5 min-h-11 w-full rounded-xl border border-hairline bg-paper px-3 text-base font-normal tracking-wider text-ink placeholder:text-ink-soft/60 focus:border-pepper focus:outline-none"/>
